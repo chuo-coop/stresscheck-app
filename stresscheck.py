@@ -13,30 +13,44 @@ from reportlab.lib.utils import ImageReader
 # ------------------------------------------------
 # Configuration
 # ------------------------------------------------
-APP_TITLE = "中大生協版 職業性ストレス簡易調査 - ver1.2"
+APP_TITLE = "中大生協版 職業性ストレス簡易調査 - ver1.3"
 
 DESC = (
     "本チェックは厚生労働省の57項目票をベースにしたセルフケア版です。"
     "所要時間：約5〜7分。結果は端末内のみで処理されます（送信しません）。"
 )
 
-CHOICES = [
-    "1：まったくない／ちがう",
-    "2：あまりない",
+CHOICES_AGREE = [
+    "1：そうではない",
+    "2：あまりそうではない",
     "3：どちらともいえない",
-    "4：ややある",
-    "5：とてもある／そうだ",
+    "4：ややそうだ",
+    "5：そうだ",
 ]
 
+CHOICES_FREQ = [
+    "1：ほとんどない",
+    "2：あまりない",
+    "3：どちらともいえない",
+    "4：ときどきある",
+    "5：よくある",
+]
+
+# ------------------------------------------------
+# Questions (A=同意型, B=頻度型)
+# ------------------------------------------------
 QUESTIONS = [
-    # ※厚労省の57項目をここにすべて入れる
-    "自分の仕事量は多いと感じる。",
-    "仕事の質に対する要求が高い。",
-    "仕事の内容がよく変わる。",
-    "自分の意見が職場で尊重されていると感じる。",
-    "職場での人間関係に満足している。",
-    "上司や同僚からの支援を受けていると感じる。",
-    # ...（以下略）
+    ("自分の仕事量は多いと感じる。", "A"),
+    ("仕事の質に対する要求が高い。", "A"),
+    ("仕事の内容がよく変わる。", "A"),
+    ("上司や同僚の支援を受けていると感じる。", "A"),
+    ("職場の雰囲気が良い。", "A"),
+    ("最近、疲れを感じることが多い。", "B"),
+    ("イライラすることがある。", "B"),
+    ("気分が沈むことがある。", "B"),
+    ("夜、眠れないことがある。", "B"),
+    ("休日も疲れが取れないと感じる。", "B"),
+    # ...（省略、実際は57問）
 ]
 
 # ------------------------------------------------
@@ -60,13 +74,17 @@ st.write("---")
 if "responses" not in st.session_state:
     st.session_state.responses = []
 
-# 質問の実施
+# 質問進行
 q_index = len(st.session_state.responses)
 if q_index < len(QUESTIONS):
+    question_text, q_type = QUESTIONS[q_index]
     st.subheader(f"Q{q_index + 1}／{len(QUESTIONS)}")
-    st.write(QUESTIONS[q_index])
-    answer = st.radio("回答を選んでください：", CHOICES, key=f"q_{q_index}")
-    if st.button("次へ"):
+    st.write(question_text)
+
+    # 質問タイプ別に選択肢切替
+    options = CHOICES_AGREE if q_type == "A" else CHOICES_FREQ
+    answer = st.radio("回答を選んでください：", options, key=f"q_{q_index}")
+    if st.button("次へ ▶"):
         st.session_state.responses.append(answer)
         st.rerun()
 else:
@@ -74,7 +92,7 @@ else:
     st.write("---")
 
     # ------------------------------------------------
-    # 集計処理（仮スコア算出）
+    # 仮スコア算出（デモ用固定値）
     # ------------------------------------------------
     scores = {
         "仕事の負担感": 45.6,
@@ -133,7 +151,6 @@ else:
         c = canvas.Canvas(buffer, pagesize=A4)
         width, height = A4
 
-        # フォント設定
         try:
             pdfmetrics.registerFont(TTFont("IPAexMincho", "ipaexm.ttf"))
             font_name = "IPAexMincho"
@@ -141,17 +158,16 @@ else:
             font_name = "Helvetica"
 
         c.setFont(font_name, 9)
-        c.drawString(30 * mm, 280 * mm, "中大生協版 職業性ストレス簡易調査 - ver1.2")
+        c.drawString(30 * mm, 280 * mm, "中大生協版 職業性ストレス簡易調査 - ver1.3")
         c.drawString(30 * mm, 275 * mm, f"結果生成日時：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
 
-        # チャート画像をPDFに貼る
+        # チャート画像
         img_buf = io.BytesIO()
         fig.savefig(img_buf, format="png", bbox_inches="tight")
         img_buf.seek(0)
         img = ImageReader(img_buf)
         c.drawImage(img, 30 * mm, 140 * mm, width=150 * mm, height=120 * mm)
 
-        # スコア部分
         text_y = 130
         for key, val in scores.items():
             c.drawString(30 * mm, text_y * mm, f"{key}：{val:.1f}（全国平均 {NATIONAL_AVG[key]:.0f}）")
@@ -160,8 +176,8 @@ else:
         c.drawString(30 * mm, (text_y - 5) * mm, f"総合ストレス指数：{total_score:.1f}")
         text_y -= 10
 
-        # 注意書き
-        notice_lines = [
+        # 注意文と監修
+        lines = [
             "【ご注意】",
             "本調査は厚生労働省「職業性ストレス簡易調査票（57項目）」をもとにした",
             "中央大学生活協同組合のセルフチェック版です。",
@@ -175,7 +191,7 @@ else:
             "Chuo University Co-op",
             "──────────────────────────────",
         ]
-        for line in notice_lines:
+        for line in lines:
             c.drawString(30 * mm, (text_y - 5) * mm, line)
             text_y -= 5
 
