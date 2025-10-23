@@ -68,12 +68,17 @@ if "answers" not in st.session_state:
 
 def go_next():
     st.session_state.page += 1
+    st.rerun()
+
 def go_prev():
     if st.session_state.page > 0:
         st.session_state.page -= 1
+        st.rerun()
+
 def restart():
     st.session_state.page = 0
     st.session_state.answers = [None] * len(QUESTIONS)
+    st.rerun()
 
 # ========== UI ==========
 st.title(APP_TITLE)
