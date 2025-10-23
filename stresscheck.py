@@ -1,5 +1,5 @@
 # ------------------------------------------------------------
-# ストレスチェック簡易版（中大生協セルフケア） ver1.5.1 文字ヘッダー版
+# ストレスチェック簡易版（中大生協セルフケア） ver1.5
 # ------------------------------------------------------------
 import streamlit as st
 import io
@@ -13,7 +13,7 @@ from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.lib.utils import ImageReader
 
 # ========== 基本設定 ==========
-st.set_page_config(page_title="ストレスチェック簡易版 - ver1.5.1", layout="centered")
+st.set_page_config(page_title="ストレスチェック簡易版 - ver1.5", layout="centered")
 plt.rcParams['font.family'] = 'IPAexGothic'
 plt.rcParams['axes.unicode_minus'] = False
 
