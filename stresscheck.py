@@ -206,19 +206,39 @@ else:
         c.drawString(60, y, desc)
         y -= 18
 
-    # 注意書き
-    y -= 6
-    c.line(40, y, A4[0]-40, y); y -= 18
-    c.setFont("HeiseiMin-W3", 9)
-    notice = [
-        "【ご注意】本調査は厚生労働省「職業性ストレス簡易調査票（57項目）」をもとにした中央大学生活協同組合のセルフチェック版です。",
-        "結果はご自身のストレス傾向を把握するための目安であり、医学的診断や評価を目的とするものではありません。",
-        "心身の不調が続く場合や結果に不安がある場合は、産業医・保健師・カウンセラー等の専門家へご相談ください。",
-    ]
-    for line in notice:
-        c.drawString(40, y, line); y -= 12
+    # --- 注意書き ---
+y -= 30
+c.drawString(40, y, "──────────────────────────────")
+y -= 20
+c.setFont("HeiseiMin-W3", 9)
+c.drawString(40, y, "【ご注意】")
+y -= 15
 
-    c.showPage(); c.save()
+notice = [
+    "本調査は厚生労働省「職業性ストレス簡易調査票（57項目）」をもとにした",
+    "中央大学生活協同組合のセルフチェック版です。",
+    "結果はご自身のストレス傾向を把握するための目安であり、",
+    "医学的な診断や評価を目的とするものではありません。",
+    "心身の不調が続く場合や結果に不安を感じる場合は、",
+    "医師・保健師・カウンセラー等の専門家へご相談ください。",
+]
+
+for line in notice:
+    c.drawString(40, y, line)
+    y -= 14
+
+# --- 監修表記 ---
+y -= 30
+c.drawString(40, y, "──────────────────────────────")
+y -= 20
+c.setFont("HeiseiMin-W3", 9)
+c.drawString(40, y, "Supervised by General Affairs Division / Information & Communication Team")
+y -= 14
+c.drawString(40, y, "Chuo University Co-op")
+c.drawString(40, y - 8, "──────────────────────────────")
+
+c.showPage()
+c.save()
 
     st.download_button(
         "📄 PDFをダウンロード",
