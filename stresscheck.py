@@ -3,6 +3,7 @@ import math
 import io
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 from datetime import datetime
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -11,18 +12,19 @@ from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.lib.utils import ImageReader
 
 # ------------------------------------------------------------
-# 職業性ストレス簡易調査票（57項目・設問タイプ別選択肢対応）
+# 中大生協版 職業性ストレス簡易調査 - ver1.0
 # ------------------------------------------------------------
+st.set_page_config("中大生協版 職業性ストレス簡易調査-ver1.0", layout="centered")
+
+plt.rcParams['font.family'] = 'IPAexGothic'
+plt.rcParams['axes.unicode_minus'] = False
 
 APP_TITLE = "中大生協版 職業性ストレス簡易調査-ver1.0"
 DESC = (
-    "本チェックは厚生労働省の「職業性ストレス簡易調査票（57項目）」をもとにしたセルフケア版です。"
-    "回答結果は端末内のみで処理され、保存・送信は行われません。所要時間：約7分。"
+    "本チェックは厚生労働省の「職業性ストレス簡易調査票（57項目）」をもとに作成した、"
+    "中央大学生活協同組合セルフケア版です。回答結果は端末内のみで処理され、保存・送信は行われません。"
 )
 
-# ------------------------------------------------------------
-# 選択肢セット（タイプ別）
-# ------------------------------------------------------------
 CHOICES_AGREE = [
     "1：まったくそうではない",
     "2：あまりそうではない",
@@ -40,93 +42,40 @@ CHOICES_FREQ = [
 ]
 
 # ------------------------------------------------------------
-# 設問リスト（57問）＋タイプ指定
+# 設問＆タイプ設定（A=同意型, B=頻度型, C=否定文型）
 # ------------------------------------------------------------
 QUESTIONS = [
-# A群（1〜17）
-"自分のペースで仕事ができる。",
-"仕事の量が多い。",
-"時間内に仕事を終えるのが難しい。",
-"仕事の内容が高度である。",
-"自分の知識や技能を使う仕事である。",
-"仕事に対して裁量がある。",
-"自分の仕事の役割がはっきりしている。",
-"自分の仕事が組織の中で重要だと思う。",
-"仕事の成果が報われると感じる。",
-"職場の雰囲気が良い。",
-"職場の人間関係で気を使う。",
-"上司からのサポートが得られる。",
-"同僚からのサポートが得られる。",
-"仕事上の相談ができる相手がいる。",
-"顧客や取引先との関係がうまくいっている。",
-"自分の意見が職場で尊重されている。",
-"職場に自分の居場所がある。",
-
-# B群（18〜46）
-"活気がある。",
-"仕事に集中できる。",
-"気分が晴れない。",
-"ゆううつだ。",
-"怒りっぽい。",
-"イライラする。",
-"落ち着かない。",
-"不安だ。",
-"眠れない。",
-"疲れやすい。",
-"体がだるい。",
-"頭が重い。",
-"肩こりや腰痛がある。",
-"胃が痛い、食欲がない。",
-"動悸や息苦しさがある。",
-"手足の冷え、しびれがある。",
-"めまいやふらつきがある。",
-"体調がすぐれないと感じる。",
-"仕事をする気力が出ない。",
-"集中力が続かない。",
-"物事を楽しめない。",
-"自分を責めることが多い。",
-"周りの人に対して興味がわかない。",
-"自分には価値がないと感じる。",
-"将来に希望がもてない。",
-"眠っても疲れがとれない。",
-"小さなことが気になる。",
-"涙もろくなる。",
-"休日も疲れが残る。",
-
-# C群（47〜55）
-"上司はあなたの意見を聞いてくれる。",
-"上司は相談にのってくれる。",
-"上司は公平に扱ってくれる。",
-"同僚は困ったとき助けてくれる。",
-"同僚とは気軽に話ができる。",
-"同僚と協力しながら仕事ができる。",
-"家族や友人はあなたを支えてくれる。",
-"家族や友人に悩みを話せる。",
-"家族や友人はあなたの仕事を理解してくれる。",
-
-# D群（56〜57）
-"現在の仕事に満足している。",
-"現在の生活に満足している。"
-]
-
-# ------------------------------------------------------------
-# 設問タイプ（A=同意型, B=頻度型, C=否定的文型）
-# ------------------------------------------------------------
-Q_TYPE = [
 # A群
-"A","C","C","A","A","A","A","A","A","A","C","A","A","A","A","A","A",
+"自分のペースで仕事ができる。","仕事の量が多い。","時間内に仕事を終えるのが難しい。",
+"仕事の内容が高度である。","自分の知識や技能を使う仕事である。","仕事に対して裁量がある。",
+"自分の仕事の役割がはっきりしている。","自分の仕事が組織の中で重要だと思う。",
+"仕事の成果が報われると感じる。","職場の雰囲気が良い。","職場の人間関係で気を使う。",
+"上司からのサポートが得られる。","同僚からのサポートが得られる。","仕事上の相談ができる相手がいる。",
+"顧客や取引先との関係がうまくいっている。","自分の意見が職場で尊重されている。","職場に自分の居場所がある。",
 # B群
-"A","A","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B",
+"活気がある。","仕事に集中できる。","気分が晴れない。","ゆううつだ。","怒りっぽい。","イライラする。",
+"落ち着かない。","不安だ。","眠れない。","疲れやすい。","体がだるい。","頭が重い。","肩こりや腰痛がある。",
+"胃が痛い、食欲がない。","動悸や息苦しさがある。","手足の冷え、しびれがある。","めまいやふらつきがある。",
+"体調がすぐれないと感じる。","仕事をする気力が出ない。","集中力が続かない。","物事を楽しめない。",
+"自分を責めることが多い。","周りの人に対して興味がわかない。","自分には価値がないと感じる。",
+"将来に希望がもてない。","眠っても疲れがとれない。","小さなことが気になる。","涙もろくなる。","休日も疲れが残る。",
 # C群
-"A","A","A","A","A","A","A","A","A",
+"上司はあなたの意見を聞いてくれる。","上司は相談にのってくれる。","上司は公平に扱ってくれる。",
+"同僚は困ったとき助けてくれる。","同僚とは気軽に話ができる。","同僚と協力しながら仕事ができる。",
+"家族や友人はあなたを支えてくれる。","家族や友人に悩みを話せる。","家族や友人はあなたの仕事を理解してくれる。",
 # D群
-"A","A"
+"現在の仕事に満足している。","現在の生活に満足している。"
+]
+
+Q_TYPE = [
+"A","C","C","A","A","A","A","A","A","A","C","A","A","A","A","A","A",
+"A","A","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B","B",
+"A","A","A","A","A","A","A","A","A","A","A"
 ]
 
 # ------------------------------------------------------------
-# Streamlit UI設定
+# Streamlit UI
 # ------------------------------------------------------------
-st.set_page_config(APP_TITLE, layout="centered")
 st.title(APP_TITLE)
 st.write(DESC)
 st.divider()
@@ -146,7 +95,7 @@ def restart():
     st.rerun()
 
 # ------------------------------------------------------------
-# 質問進行パート
+# Q&A進行
 # ------------------------------------------------------------
 if st.session_state.page < len(QUESTIONS):
     q_num = st.session_state.page + 1
@@ -154,10 +103,7 @@ if st.session_state.page < len(QUESTIONS):
     st.write(QUESTIONS[st.session_state.page])
 
     q_type = Q_TYPE[st.session_state.page]
-    if q_type == "B":
-        choice_set = CHOICES_FREQ
-    else:
-        choice_set = CHOICES_AGREE
+    choice_set = CHOICES_FREQ if q_type == "B" else CHOICES_AGREE
 
     choice = st.radio("回答を選んでください：", choice_set, index=None, key=f"q_{q_num}")
     if choice:
@@ -166,55 +112,52 @@ if st.session_state.page < len(QUESTIONS):
             next_page()
 
 # ------------------------------------------------------------
-# 解析・結果表示
+# 集計・解析・PDF出力
 # ------------------------------------------------------------
 else:
     st.success("🎉 回答完了！解析を開始します。")
     answers = st.session_state.answers
 
-    # 群ごとに分割
-    A = answers[0:17]
-    B = answers[17:46]
-    C = answers[46:55]
-    D = answers[55:57]
+    A, B, C, D = answers[0:17], answers[17:46], answers[46:55], answers[55:57]
+    C_rev, D_rev = [6 - x for x in C], [6 - x for x in D]
 
-    # 逆転項目（支援・満足度）
-    C_rev = [6 - x for x in C]
-    D_rev = [6 - x for x in D]
+    def normalize(val, n): return round((val - n) / (n * 4) * 100, 1)
+    A_score, B_score, C_score, D_score = [normalize(sum(x), len(x)) for x in [A, B, C_rev, D_rev]]
 
-    def normalize(val, n):
-        return round((val - n) / (n * 4) * 100, 1)
-
-    A_score = normalize(sum(A), len(A))
-    B_score = normalize(sum(B), len(B))
-    C_score = normalize(sum(C_rev), len(C_rev))
-    D_score = normalize(sum(D_rev), len(D_rev))
     total = round((A_score + B_score + C_score + D_score) / 4, 1)
-
-    # 全国平均（指標値）
     nat_A, nat_B, nat_C, nat_D = 45, 40, 35, 30
-    nat_vals = [nat_A, nat_B, nat_C, nat_D]
-    my_vals = [A_score, B_score, C_score, D_score]
+    nat_vals, my_vals = [nat_A, nat_B, nat_C, nat_D], [A_score, B_score, C_score, D_score]
     diff = [round(m - n, 1) for m, n in zip(my_vals, nat_vals)]
 
-    # 結果表示
+    # 自動判定
+    if B_score >= 60:
+        status = "高ストレス状態（専門医への相談をおすすめします）"
+    elif B_score >= 50 and (A_score >= 55 or C_score >= 55):
+        status = "注意：ストレス反応や職場要因がやや高い水準です"
+    else:
+        status = "概ね安定しています（現状維持を心がけましょう）"
+
+    # コメント
+    comments = [
+        f"職場ストレッサー：{'高めです。業務量や役割負担を見直すと良いでしょう。' if A_score > 55 else 'おおむね良好です。'}",
+        f"心身反応：{'疲労や情緒反応が強めです。無理を避け、休息を確保しましょう。' if B_score > 55 else '安定しています。'}",
+        f"支援不足：{'周囲のサポート感がやや不足しています。上司・同僚・家族と話す機会を意識しましょう。' if C_score > 55 else '支援環境は比較的良好です。'}",
+        f"満足度不足：{'仕事や生活への満足感が低めです。自己評価や環境調整を意識してみましょう。' if D_score > 55 else '概ね満足傾向です。'}"
+    ]
+
     st.subheader("解析結果（全国平均との比較）")
+    st.metric("総合判定", status)
     col1, col2, col3 = st.columns(3)
-    col1.metric("職場ストレッサー指数", A_score, f"{diff[0]:+}")
-    col2.metric("心身反応指数", B_score, f"{diff[1]:+}")
-    col3.metric("支援不足指数", C_score, f"{diff[2]:+}")
-    st.metric("満足度不足指数", D_score, f"{diff[3]:+}")
-    st.metric("総合ストレス指数", total)
+    col1.metric("職場ストレッサー", A_score, f"{diff[0]:+}")
+    col2.metric("心身反応", B_score, f"{diff[1]:+}")
+    col3.metric("支援不足", C_score, f"{diff[2]:+}")
+    st.metric("満足度不足", D_score, f"{diff[3]:+}")
+    st.write("｜".join(comments))
 
-    # ------------------------------------------------------------
     # レーダーチャート
-    # ------------------------------------------------------------
     labels = ["職場ストレッサー", "心身反応", "支援不足", "満足度不足"]
-    user = my_vals + [my_vals[0]]
-    avg = nat_vals + [nat_vals[0]]
-    angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist()
-    angles += angles[:1]
-
+    user, avg = my_vals + [my_vals[0]], nat_vals + [nat_vals[0]]
+    angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist() + [0]
     fig, ax = plt.subplots(figsize=(4, 4), subplot_kw=dict(polar=True))
     ax.plot(angles, user, 'r-', linewidth=2, label="あなた")
     ax.fill(angles, user, 'r', alpha=0.15)
@@ -226,27 +169,36 @@ else:
     ax.legend(loc="upper right", bbox_to_anchor=(1.2, 1.1))
     st.pyplot(fig)
 
-    # ------------------------------------------------------------
-    # PDF出力（レーダーチャート埋め込み）
-    # ------------------------------------------------------------
-    buf = io.BytesIO()
-    img_buf = io.BytesIO()
+    # PDF生成
+    buf, img_buf = io.BytesIO(), io.BytesIO()
     fig.savefig(img_buf, format="png", bbox_inches="tight")
     img_buf.seek(0)
-
     pdfmetrics.registerFont(UnicodeCIDFont("HeiseiMin-W3"))
     c = canvas.Canvas(buf, pagesize=A4)
     c.setFont("HeiseiMin-W3", 12)
-    c.drawString(40, 800, f"職業性ストレス簡易調査 結果（{datetime.now().strftime('%Y-%m-%d %H:%M')}）")
-    c.drawImage(ImageReader(img_buf), 60, 450, width=300, height=300)
-    c.drawString(40, 420, f"職場ストレッサー指数：{A_score}（全国平均45）")
-    c.drawString(40, 400, f"心身反応指数：{B_score}（全国平均40）")
-    c.drawString(40, 380, f"支援不足指数：{C_score}（全国平均35）")
-    c.drawString(40, 360, f"満足度不足指数：{D_score}（全国平均30）")
-    c.drawString(40, 330, f"総合ストレス指数：{total}")
-    c.drawString(40, 300, "※本結果はセルフチェックであり、医学的診断を目的とするものではありません。")
-    c.showPage()
-    c.save()
+    c.drawString(40, 800, f"中大生協版 職業性ストレス簡易調査-ver1.0  結果（{datetime.now().strftime('%Y-%m-%d %H:%M')}）")
+    c.drawImage(ImageReader(img_buf), 60, 440, width=300, height=300)
+    y = 400
+    for t in [f"総合判定：{status}", *comments]:
+        c.drawString(40, y, t); y -= 20
+    c.drawString(40, y-10, "──────────────────────────────")
+    y -= 40
+    notice = [
+        "【ご注意】",
+        "本調査は厚生労働省「職業性ストレス簡易調査票（57項目）」をもとにした",
+        "中央大学生活協同組合のセルフチェック版です。",
+        "結果はご自身のストレス傾向を把握するための目安であり、",
+        "医学的な診断や評価を目的とするものではありません。",
+        "心身の不調が続く場合や結果に不安を感じる場合は、",
+        "医師・保健師・カウンセラー等の専門家へご相談ください。",
+        "",
+        "──────────────────────────────",
+        "Supervised by General Affairs Division / Information & Communication Team",
+        "Chuo University Co-op",
+        "──────────────────────────────",
+    ]
+    for line in notice: c.drawString(40, y, line); y -= 18
+    c.showPage(); c.save()
 
     st.download_button(
         "📄 PDFをダウンロード",
@@ -255,6 +207,11 @@ else:
         mime="application/pdf",
     )
 
-    st.divider()
+    st.markdown("""
+---
+※本チェックは簡易セルフケアを目的としたものであり、医学的診断ではありません。  
+結果に不安がある場合や体調の変化が続く場合は、産業医・保健師・専門医にご相談ください。
+""")
+
     if st.button("🔁 もう一度やり直す"):
         restart()
