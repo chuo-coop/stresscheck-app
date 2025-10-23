@@ -12,25 +12,25 @@ from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.lib.utils import ImageReader
 
 # ------------------------------------------------------------
-# 中大生協版 職業性ストレス簡易調査 - ver1.0
+# 中大生協版 職業性ストレス簡易調査 - ver1.1（正式運用版）
 # ------------------------------------------------------------
-st.set_page_config("中大生協版 職業性ストレス簡易調査-ver1.0", layout="centered")
+st.set_page_config("中大生協版 職業性ストレス簡易調査-ver1.1", layout="centered")
 
 plt.rcParams['font.family'] = 'IPAexGothic'
 plt.rcParams['axes.unicode_minus'] = False
 
-APP_TITLE = "中大生協版 職業性ストレス簡易調査-ver1.0"
+APP_TITLE = "中大生協版 職業性ストレス簡易調査-ver1.1"
 DESC = (
     "本チェックは厚生労働省の「職業性ストレス簡易調査票（57項目）」をもとに作成した、"
     "中央大学生活協同組合セルフケア版です。回答結果は端末内のみで処理され、保存・送信は行われません。"
 )
 
 CHOICES_AGREE = [
-    "1：まったくそうではない",
+    "1：そうではない",
     "2：あまりそうではない",
     "3：どちらともいえない",
     "4：ややそうだ",
-    "5：とてもそうだ",
+    "5：そうだ",
 ]
 
 CHOICES_FREQ = [
@@ -129,7 +129,6 @@ else:
     nat_vals, my_vals = [nat_A, nat_B, nat_C, nat_D], [A_score, B_score, C_score, D_score]
     diff = [round(m - n, 1) for m, n in zip(my_vals, nat_vals)]
 
-    # 自動判定
     if B_score >= 60:
         status = "高ストレス状態（専門医への相談をおすすめします）"
     elif B_score >= 50 and (A_score >= 55 or C_score >= 55):
@@ -137,25 +136,24 @@ else:
     else:
         status = "概ね安定しています（現状維持を心がけましょう）"
 
-    # コメント
     comments = [
-        f"職場ストレッサー：{'高めです。業務量や役割負担を見直すと良いでしょう。' if A_score > 55 else 'おおむね良好です。'}",
-        f"心身反応：{'疲労や情緒反応が強めです。無理を避け、休息を確保しましょう。' if B_score > 55 else '安定しています。'}",
-        f"支援不足：{'周囲のサポート感がやや不足しています。上司・同僚・家族と話す機会を意識しましょう。' if C_score > 55 else '支援環境は比較的良好です。'}",
-        f"満足度不足：{'仕事や生活への満足感が低めです。自己評価や環境調整を意識してみましょう。' if D_score > 55 else '概ね満足傾向です。'}"
+        f"A：{'高めです。業務量や役割負担を見直すと良いでしょう。' if A_score > 55 else 'おおむね良好です。'}",
+        f"B：{'疲労や情緒反応が強めです。無理を避け、休息を確保しましょう。' if B_score > 55 else '安定しています。'}",
+        f"C：{'周囲のサポート感がやや不足しています。上司・同僚・家族と話す機会を意識しましょう。' if C_score > 55 else '支援環境は比較的良好です。'}",
+        f"D：{'仕事や生活への満足感が低めです。自己評価や環境調整を意識してみましょう。' if D_score > 55 else '概ね満足傾向です。'}"
     ]
 
     st.subheader("解析結果（全国平均との比較）")
     st.metric("総合判定", status)
     col1, col2, col3 = st.columns(3)
-    col1.metric("職場ストレッサー", A_score, f"{diff[0]:+}")
-    col2.metric("心身反応", B_score, f"{diff[1]:+}")
-    col3.metric("支援不足", C_score, f"{diff[2]:+}")
-    st.metric("満足度不足", D_score, f"{diff[3]:+}")
-    st.write("｜".join(comments))
+    col1.metric("A：仕事の負担感", A_score, f"{diff[0]:+}")
+    col2.metric("B：からだと気持ちの反応", B_score, f"{diff[1]:+}")
+    col3.metric("C：周囲のサポート", C_score, f"{diff[2]:+}")
+    st.metric("D：仕事や生活の満足感", D_score, f"{diff[3]:+}")
+    st.caption("A：仕事の負担感　B：からだと気持ちの反応　C：周囲のサポート　D：仕事や生活の満足感")
 
     # レーダーチャート
-    labels = ["職場ストレッサー", "心身反応", "支援不足", "満足度不足"]
+    labels = ["A", "B", "C", "D"]
     user, avg = my_vals + [my_vals[0]], nat_vals + [nat_vals[0]]
     angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist() + [0]
     fig, ax = plt.subplots(figsize=(4, 4), subplot_kw=dict(polar=True))
@@ -175,8 +173,8 @@ else:
     img_buf.seek(0)
     pdfmetrics.registerFont(UnicodeCIDFont("HeiseiMin-W3"))
     c = canvas.Canvas(buf, pagesize=A4)
-    c.setFont("HeiseiMin-W3", 12)
-    c.drawString(40, 800, f"中大生協版 職業性ストレス簡易調査-ver1.0  結果（{datetime.now().strftime('%Y-%m-%d %H:%M')}）")
+    c.setFont("HeiseiMin-W3", 9)
+    c.drawString(40, 800, f"中大生協版 職業性ストレス簡易調査-ver1.1  結果（{datetime.now().strftime('%Y-%m-%d %H:%M')}）")
     c.drawImage(ImageReader(img_buf), 60, 440, width=300, height=300)
     y = 400
     for t in [f"総合判定：{status}", *comments]:
