@@ -1,0 +1,326 @@
+
+import streamlit as st
+import math
+import io
+from datetime import datetime
+import matplotlib.pyplot as plt
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.utils import ImageReader
+
+# -----------------------------
+# Configuration
+# -----------------------------
+APP_TITLE = "職業性ストレス簡易調査（5択・自動解析版）"
+DESC = (
+    "本チェックは厚生労働省の57項目票をベースにしたセルフケア版です。"
+    "所要時間：約5〜7分。結果は端末内のみで処理されます（送信しません）。"
+)
+CHOICES = [
+    "1：まったくない／ちがう",
+    "2：あまりない",
+    "3：どちらともいえない",
+    "4：ややある",
+    "5：とてもある／そうだ",
+]
+
+# Group structure lengths
+LEN_A = 17
+LEN_B = 29
+LEN_C = 9
+LEN_D = 2
+
+# Reverse-scored items (indexing is 1-based per spec)
+# A8, A9, A10, A14, A16, A17, C1〜C9, D1, D2
+REVERSE = set(
+    [("A",8),("A",9),("A",10),("A",14),("A",16),("A",17)]
+    + [("C",i) for i in range(1,10)]
+    + [("D",1),("D",2)]
+)
+
+# -----------------------------
+# Questions (PLACEHOLDER TEXTS)
+# Replace each text with the official MoHLW wording if required.
+# Labels follow A1..A17, B1..B29, C1..C9, D1..D2 for scoring.
+# -----------------------------
+def build_questions():
+    qs = []
+    for i in range(1, LEN_A+1):
+        qs.append((f"A{i}", f"A{i}（厚労省原文をここに表示）"))
+    for i in range(1, LEN_B+1):
+        qs.append((f"B{i}", f"B{i}（厚労省原文をここに表示）"))
+    for i in range(1, LEN_C+1):
+        qs.append((f"C{i}", f"C{i}（厚労省原文をここに表示）"))
+    for i in range(1, LEN_D+1):
+        qs.append((f"D{i}", f"D{i}（厚労省原文をここに表示）"))
+    return qs
+
+QUESTIONS = build_questions()
+
+# -----------------------------
+# Helpers
+# -----------------------------
+def reverse_score(val:int) -> int:
+    if val not in [1,2,3,4,5]:
+        return val
+    mapping = {1:5, 2:4, 3:3, 4:2, 5:1}
+    return mapping[val]
+
+def normalize_0_100(total:int, n_items:int) -> float:
+    # Theoretical min = n*1, max = n*5
+    min_t = n_items * 1
+    max_t = n_items * 5
+    if max_t == min_t:
+        return 0.0
+    return ( (total - min_t) / (max_t - min_t) ) * 100.0
+
+def compute_scores(responses: dict):
+    # responses: mapping like {"A1": 1..5, ...}
+    # Adjust reverse-scored items
+    adj = {}
+    for key, val in responses.items():
+        grp = key[0]
+        idx = int(key[1:])
+        if (grp, idx) in REVERSE:
+            adj[key] = reverse_score(val)
+        else:
+            adj[key] = val
+
+    # Group sums
+    sumA = sum(adj[f"A{i}"] for i in range(1, LEN_A+1))
+    sumB = sum(adj[f"B{i}"] for i in range(1, LEN_B+1))
+    sumC = sum(adj[f"C{i}"] for i in range(1, LEN_C+1))
+    sumD = sum(adj[f"D{i}"] for i in range(1, LEN_D+1))
+
+    # Major indices
+    # ① 職場ストレッサー指数 = A全体 + D1（仕事満足度の逆反映）
+    #    ※ D1 はすでに必要なら反転済み（adj）
+    stressor_total = sumA + adj["D1"]  # N_items = 17 + 1 = 18
+    stressor = normalize_0_100(stressor_total, LEN_A + 1)
+
+    # ② 支援資源指数 = C全体（点が低いほど支援不足）
+    #    方向を合わせるため「支援不足度」として高いほど注意の向きに。
+    #    adjはすでに逆転済み＝高い値ほど支援豊富なので、
+    #    不足度 = 100 - normalized(C)
+    support_norm = normalize_0_100(sumC, LEN_C)
+    support_deficit = 100.0 - support_norm
+
+    # ③ 心身反応指数 = B全体
+    reaction = normalize_0_100(sumB, LEN_B)
+
+    # B subscales (rough buckets; you can refine mapping with official spec)
+    # For demo, we split B into 6 contiguous blocks reflecting typical subscales counts:
+    # 活気(3), イライラ(6), 不安(5), 抑うつ(6), 疲労(5), 身体愁訴(4) = 29 total
+    b_map_counts = [("活気",3),("イライラ",6),("不安",5),("抑うつ",6),("疲労",5),("身体愁訴",4)]
+    b_scores = {}
+    start = 1
+    for name, cnt in b_map_counts:
+        end = start + cnt - 1
+        subtotal = sum(adj[f"B{i}"] for i in range(start, end+1))
+        b_scores[name] = normalize_0_100(subtotal, cnt)
+        start = end + 1
+
+    major = {
+        "職場ストレッサー指数": stressor,
+        "支援資源指数（不足度）": support_deficit,
+        "心身反応指数": reaction,
+    }
+
+    # Warning logic
+    warn = (reaction >= 66.7 and stressor >= 66.7)
+
+    return major, b_scores, warn
+
+def rating_label(x: float) -> str:
+    if x < 33.3:
+        return "低"
+    elif x < 66.7:
+        return "中"
+    else:
+        return "高"
+
+def make_radar_chart(major: dict, b_scores: dict, warn: bool) -> io.BytesIO:
+    # Build 9-axis radar (3 major + 6 subscales)
+    labels = list(major.keys()) + list(b_scores.keys())
+    values = [major[k] for k in major] + [b_scores[k] for k in b_scores]
+    # Close the polygon
+    labels.append(labels[0])
+    values.append(values[0])
+
+    N = len(values)
+    angles = [n / float(N-1) * 2 * math.pi for n in range(N)]
+
+    fig = plt.figure(figsize=(5,5))
+    ax = plt.subplot(111, polar=True)
+    ax.set_theta_offset(math.pi / 2)
+    ax.set_theta_direction(-1)
+
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(labels[:-1], fontsize=8)
+
+    ax.set_rlabel_position(0)
+    ax.set_yticks([20,40,60,80,100])
+    ax.set_yticklabels([str(x) for x in [20,40,60,80,100]], fontsize=7)
+    ax.set_ylim(0, 100)
+
+    ax.plot(angles, values)
+    ax.fill(angles, values, alpha=0.1)
+
+    if warn:
+        ax.set_title("注意：⚠ 指標が高い領域があります", fontsize=10, pad=12)
+    else:
+        ax.set_title("レーダーチャート（0-100）", fontsize=10, pad=12)
+
+    buf = io.BytesIO()
+    plt.tight_layout()
+    plt.savefig(buf, format="png", dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+def generate_pdf(major: dict, b_scores: dict, warn: bool, chart_png: bytes) -> bytes:
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    W, H = A4
+
+    # Try to set MS Mincho; fallback if not found
+    try:
+        pdfmetrics.registerFont(TTFont("MSMincho", "MSMINCHO.TTC"))
+        font_name = "MSMincho"
+    except Exception:
+        try:
+            pdfmetrics.registerFont(TTFont("MSMincho", "MSMINCHO.ttf"))
+            font_name = "MSMincho"
+        except Exception:
+            font_name = "Helvetica"
+
+    c.setFont(font_name, 12)
+
+    # Title
+    title = "職業性ストレス簡易調査（5択・自動解析版）結果"
+    date_str = datetime.now().strftime("%Y/%m/%d")
+    c.drawString(20*mm, (H-20*mm), title)
+    c.setFont(font_name, 10)
+    c.drawString(20*mm, (H-28*mm), f"実施日：{date_str} / 匿名実施")
+
+    # Chart
+    img = ImageReader(chart_png)
+    chart_w = 120 * mm
+    chart_h = 120 * mm
+    c.drawImage(img, (W - chart_w)/2, (H - 28*mm - chart_h - 10*mm), chart_w, chart_h)
+
+    # Table (major + b_scores)
+    y = (H - 28*mm - chart_h - 18*mm)
+    c.setFont(font_name, 10)
+    c.drawString(20*mm, y, "指標（0-100）")
+    y -= 6*mm
+    for k, v in major.items():
+        c.drawString(22*mm, y, f"{k}：{v:.1f}（{rating_label(v)}）")
+        y -= 6*mm
+    for k, v in b_scores.items():
+        c.drawString(22*mm, y, f"{k}：{v:.1f}")
+        y -= 6*mm
+
+    # Warning & footer
+    y -= 4*mm
+    if warn:
+        c.setFont(font_name, 10)
+        c.drawString(20*mm, y, "⚠ 注意：心身反応と職場ストレッサーが相対的に高い結果です。")
+        y -= 6*mm
+
+    c.setFont(font_name, 9)
+    wrap = (
+        "《注意》本結果はセルフチェックであり、医療上の診断ではありません。"
+        "体調やメンタルに不安がある場合は、早めに産業医・医療機関・公的相談窓口へご相談ください。"
+    )
+    # Simple wrapping
+    import textwrap
+    for line in textwrap.wrap(wrap, 42):
+        c.drawString(20*mm, y, line)
+        y -= 5*mm
+
+    c.showPage()
+    c.save()
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+    return pdf_bytes
+
+# -----------------------------
+# UI
+# -----------------------------
+st.set_page_config(page_title=APP_TITLE, page_icon="✅", layout="centered")
+st.title(APP_TITLE)
+st.write(DESC)
+
+if "started" not in st.session_state:
+    st.session_state.started = False
+if "idx" not in st.session_state:
+    st.session_state.idx = 0
+if "answers" not in st.session_state:
+    st.session_state.answers = {}
+
+def reset():
+    st.session_state.started = True
+    st.session_state.idx = 0
+    st.session_state.answers = {}
+
+st.button("スタート", on_click=reset)
+
+if st.session_state.started:
+    total = len(QUESTIONS)
+    idx = st.session_state.idx
+
+    if idx < total:
+        label, text = QUESTIONS[idx]
+        st.subheader(f"Q{idx+1}／{total}")
+        st.write(text)
+
+        cols = st.columns(5)
+        for i, col in enumerate(cols, start=1):
+            if col.button(str(i)):
+                st.session_state.answers[label] = i
+                st.session_state.idx += 1
+                st.experimental_rerun()
+
+        # Progress
+        st.progress((idx) / total)
+        st.caption(f"進捗：{idx}/{total}")
+
+    else:
+        # Completed
+        st.success("全57問に回答しました。解析を実行します。")
+        # Ensure all items are present (safety)
+        if len(st.session_state.answers) != total:
+            st.error("回答が欠けています。")
+        else:
+            major, b_scores, warn = compute_scores(st.session_state.answers)
+
+            st.markdown("### 結果サマリ")
+            for k, v in major.items():
+                st.write(f"- **{k}**：{v:.1f}（{rating_label(v)}）")
+            if warn:
+                st.warning("⚠ 注意：心身反応と職場ストレッサーが相対的に高い結果です。")
+
+            # Radar chart
+            chart_buf = make_radar_chart(major, b_scores, warn)
+            st.image(chart_buf, caption="レーダーチャート（0-100）")
+
+            # Build PDF
+            pdf_bytes = generate_pdf(major, b_scores, warn, chart_buf.getvalue())
+            today = datetime.now().strftime("%Y%m%d")
+            filename = f"{today}_職業性ストレス簡易調査_結果.pdf"
+
+            st.download_button(
+                label="PDFダウンロード",
+                data=pdf_bytes,
+                file_name=filename,
+                mime="application/pdf"
+            )
+
+            st.info("PDFは端末内で生成され、送信・保存は行いません。")
+
+else:
+    st.info("「スタート」を押すと質問が始まります。")
