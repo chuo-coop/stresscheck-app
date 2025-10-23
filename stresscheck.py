@@ -1,5 +1,5 @@
 # ------------------------------------------------------------
-# 中大生協版 職業性ストレス簡易調査 - ver1.4（最終安定版）
+# 中大生協版 職業性ストレス簡易調査 - ver1.4.1（警告除去＋自然幅ボタン）
 # ------------------------------------------------------------
 import streamlit as st
 import io
@@ -15,12 +15,12 @@ from reportlab.lib.utils import ImageReader
 # ------------------------------------------------------------
 # 基本設定
 # ------------------------------------------------------------
-st.set_page_config(page_title="中大生協版 職業性ストレス簡易調査-ver1.4", layout="centered")
+st.set_page_config(page_title="中大生協版 職業性ストレス簡易調査-ver1.4.1", layout="centered")
 
 plt.rcParams['font.family'] = 'IPAexGothic'
 plt.rcParams['axes.unicode_minus'] = False
 
-APP_TITLE = "中大生協版 職業性ストレス簡易調査-ver1.4（最終安定版）"
+APP_TITLE = "中大生協版 職業性ストレス簡易調査-ver1.4.1（警告除去＋自然幅ボタン）"
 DESC = (
     "本チェックは厚生労働省の「職業性ストレス簡易調査票（57項目）」をもとに作成した、"
     "中央大学生活協同組合セルフケア版です。回答結果は端末内のみで処理され、保存・送信は行われません。"
@@ -111,7 +111,7 @@ st.write(DESC)
 st.divider()
 
 # ------------------------------------------------------------
-# 質問ページ（左＝次へ／右＝前へ）
+# 質問ページ（左＝次へ／右＝前へ／自然幅ボタン）
 # ------------------------------------------------------------
 if st.session_state.page < len(QUESTIONS):
     q_num = st.session_state.page + 1
@@ -126,15 +126,19 @@ if st.session_state.page < len(QUESTIONS):
 
     choice = st.radio("回答を選んでください：", choice_set, index=index_val, key=f"q_{q_num}")
 
-    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
     col1, col2 = st.columns([1, 1])
-    with col1:  # ←左に「次へ」
+
+    with col1:  # 左側：次へ
         if choice:
             st.session_state.answers[st.session_state.page] = choice_set.index(choice) + 1
-            st.button("次へ ▶", use_container_width=True, on_click=next_page)
-    with col2:  # →右に「前へ」
+            if st.button("次へ ▶"):
+                next_page()
+
+    with col2:  # 右側：前へ
         if st.session_state.page > 0:
-            st.button("◀ 前へ", use_container_width=True, on_click=prev_page)
+            if st.button("◀ 前へ"):
+                prev_page()
 
 # ------------------------------------------------------------
 # 集計・解析・PDF生成
@@ -195,7 +199,7 @@ else:
     pdfmetrics.registerFont(UnicodeCIDFont("HeiseiMin-W3"))
     c = canvas.Canvas(buf, pagesize=A4)
     c.setFont("HeiseiMin-W3", 11)
-    c.drawString(40, 800, f"中大生協版 職業性ストレス簡易調査-ver1.4 結果（{datetime.now().strftime('%Y-%m-%d %H:%M')}）")
+    c.drawString(40, 800, f"中大生協版 職業性ストレス簡易調査-ver1.4.1 結果（{datetime.now().strftime('%Y-%m-%d %H:%M')}）")
     c.drawImage(ImageReader(img_buf), 60, 450, width=300, height=300)
 
     y = 430
