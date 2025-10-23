@@ -1,5 +1,5 @@
 # ------------------------------------------------------------
-# 中大生協版 職業性ストレス簡易調査 - ver1.3.2（UI安定版＋濃色）
+# 中大生協版 職業性ストレス簡易調査 - ver1.4（最終安定版）
 # ------------------------------------------------------------
 import streamlit as st
 import io
@@ -15,19 +15,19 @@ from reportlab.lib.utils import ImageReader
 # ------------------------------------------------------------
 # 基本設定
 # ------------------------------------------------------------
-st.set_page_config(page_title="中大生協版 職業性ストレス簡易調査-ver1.3.2", layout="centered")
+st.set_page_config(page_title="中大生協版 職業性ストレス簡易調査-ver1.4", layout="centered")
 
 plt.rcParams['font.family'] = 'IPAexGothic'
 plt.rcParams['axes.unicode_minus'] = False
 
-APP_TITLE = "中大生協版 職業性ストレス簡易調査-ver1.3.2"
+APP_TITLE = "中大生協版 職業性ストレス簡易調査-ver1.4（最終安定版）"
 DESC = (
     "本チェックは厚生労働省の「職業性ストレス簡易調査票（57項目）」をもとに作成した、"
     "中央大学生活協同組合セルフケア版です。回答結果は端末内のみで処理され、保存・送信は行われません。"
 )
 
 # ------------------------------------------------------------
-# カラー設定（濃色）
+# カラー設定（濃色固定）
 # ------------------------------------------------------------
 COLOR_A = "#8B0000"   # 深赤
 COLOR_B = "#003366"   # 濃紺
@@ -55,7 +55,7 @@ CHOICES_FREQ = [
 ]
 
 # ------------------------------------------------------------
-# 質問データ
+# 設問リスト＋タイプ
 # ------------------------------------------------------------
 QUESTIONS = [
     # A群（17問）
@@ -79,11 +79,10 @@ QUESTIONS = [
     # D群（2問）
     "現在の仕事に満足している。","現在の生活に満足している。"
 ]
-
 Q_TYPE = ["A"] * 17 + ["B"] * 29 + ["C"] * 9 + ["D"] * 2
 
 # ------------------------------------------------------------
-# セッション管理
+# セッション制御
 # ------------------------------------------------------------
 if "page" not in st.session_state:
     st.session_state.page = 0
@@ -112,7 +111,7 @@ st.write(DESC)
 st.divider()
 
 # ------------------------------------------------------------
-# 質問表示（UI安定化）
+# 質問ページ（左＝次へ／右＝前へ）
 # ------------------------------------------------------------
 if st.session_state.page < len(QUESTIONS):
     q_num = st.session_state.page + 1
@@ -125,24 +124,20 @@ if st.session_state.page < len(QUESTIONS):
     prev_val = st.session_state.answers[st.session_state.page]
     index_val = (prev_val - 1) if prev_val else None
 
-    # 左カラム固定（高さ安定）
-    col_main = st.container()
-    with col_main:
-        choice = st.radio("回答を選んでください：", choice_set, index=index_val, key=f"q_{q_num}")
-        st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)  # 固定余白
+    choice = st.radio("回答を選んでください：", choice_set, index=index_val, key=f"q_{q_num}")
 
-    # 横並びボタン（高さ不変）
+    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
     col1, col2 = st.columns([1, 1])
-    with col1:
-        if st.session_state.page > 0:
-            st.button("◀ 前へ", use_container_width=True, on_click=prev_page)
-    with col2:
+    with col1:  # ←左に「次へ」
         if choice:
             st.session_state.answers[st.session_state.page] = choice_set.index(choice) + 1
             st.button("次へ ▶", use_container_width=True, on_click=next_page)
+    with col2:  # →右に「前へ」
+        if st.session_state.page > 0:
+            st.button("◀ 前へ", use_container_width=True, on_click=prev_page)
 
 # ------------------------------------------------------------
-# 集計・解析・PDF生成（※前ver1.3βと同一）
+# 集計・解析・PDF生成
 # ------------------------------------------------------------
 else:
     st.success("🎉 回答完了！解析を開始します。")
@@ -153,8 +148,6 @@ else:
         return round((val - n) / (4 * n) * 100, 1)
 
     A_score, B_score, C_score, D_score = [normalize(sum(x), len(x)) for x in [A, B, C, D]]
-    total = round((A_score + B_score + C_score + D_score) / 4, 1)
-
     nat_A, nat_B, nat_C, nat_D = 45, 40, 35, 30
     nat_vals, my_vals = [nat_A, nat_B, nat_C, nat_D], [A_score, B_score, C_score, D_score]
     diff = [round(m - n, 1) for m, n in zip(my_vals, nat_vals)]
@@ -193,7 +186,7 @@ else:
     st.pyplot(fig)
 
     # --------------------------------------------------------
-    # PDF生成（ver1.3β同等）
+    # PDF生成
     # --------------------------------------------------------
     buf, img_buf = io.BytesIO(), io.BytesIO()
     fig.savefig(img_buf, format="png", bbox_inches="tight")
@@ -202,7 +195,7 @@ else:
     pdfmetrics.registerFont(UnicodeCIDFont("HeiseiMin-W3"))
     c = canvas.Canvas(buf, pagesize=A4)
     c.setFont("HeiseiMin-W3", 11)
-    c.drawString(40, 800, f"中大生協版 職業性ストレス簡易調査-ver1.3.2 結果（{datetime.now().strftime('%Y-%m-%d %H:%M')}）")
+    c.drawString(40, 800, f"中大生協版 職業性ストレス簡易調査-ver1.4 結果（{datetime.now().strftime('%Y-%m-%d %H:%M')}）")
     c.drawImage(ImageReader(img_buf), 60, 450, width=300, height=300)
 
     y = 430
