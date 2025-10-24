@@ -347,12 +347,32 @@ else:
         y = draw_text_lines(MARGIN, y, "※本票はセルフケアを目的とした参考資料であり、医学的診断・証明を示すものではありません。", size=8, width=90, leading=10)
         c.drawString(MARGIN, y-10, "中央大学生活協同組合　情報通信チーム")
 
-        c.save(); buf.seek(0)
-    st.download_button("💾 PDFを保存", buf.getvalue(),
-        file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
-        mime="application/pdf")
+# PDF生成を関数化してバイトデータを返す
+    def build_pdf():
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    W, H = A4
+    MARGIN = 57
+    y = H - MARGIN
+
+    # ←ここに、あなたのPDF描画部分（c.drawStringなど）をそのまま残す
+    # 末尾の c.save(), buf.seek(0) は残す
+    c.save()
+    buf.seek(0)
+    return buf
+
+    pdf_buf = build_pdf()
+
+st.download_button(
+    "💾 PDFを保存",
+    pdf_buf.getvalue(),
+    file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
+    mime="application/pdf"
+)
+
 
     if st.button("🔁 もう一度やり直す"):
         st.session_state.page=0
         st.session_state.ans=[None]*57
         st.rerun()
+
