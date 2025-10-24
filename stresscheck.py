@@ -359,7 +359,7 @@ else:
     # 末尾の c.save(), buf.seek(0) は残す
     c.save()
     buf.seek(0)
-    return buf
+    return buf.getvalue()   # ←ここを修正ポイント！
 
     pdf_buf = build_pdf()
 
@@ -375,4 +375,5 @@ st.download_button(
         st.session_state.page=0
         st.session_state.ans=[None]*57
         st.rerun()
+
 
