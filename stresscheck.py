@@ -176,12 +176,23 @@ else:
 
     pdfmetrics.registerFont(UnicodeCIDFont("HeiseiMin-W3"))
     c = canvas.Canvas(buf, pagesize=A4)
-    # ヘッダー（文字ベース）
-    c.setFont("HeiseiMin-W3", 12)
-    c.drawCentredString(A4[0]/2, 810, "ストレスチェック簡易版")
-    c.setFont("HeiseiMin-W3", 9)
-    c.drawCentredString(A4[0]/2, 795, f"結果作成日時：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    c.line(40, 785, A4[0]-40, 785)
+
+    # --- PNGヘッダー（中央寄せ配置） ---
+header_img = ImageReader("TITLE.png")
+
+# A4サイズ基準で中央寄せ計算
+header_width = 500
+header_height = 90
+x = (A4[0] - header_width) / 2
+y = 740
+
+c.drawImage(header_img, x, y, width=header_width, height=header_height)
+
+# 日時と区切り線
+c.setFont("HeiseiMin-W3", 9)
+c.drawCentredString(A4[0]/2, y - 10, f"結果作成日時：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
+c.line(40, y - 20, A4[0] - 40, y - 20)
+
 
     # チャート
     c.drawImage(ImageReader(img_buf), 60, 450, width=300, height=300)
