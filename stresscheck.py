@@ -342,16 +342,33 @@ else:
             c.drawString(MARGIN+12, y, t); y -= 12
 
         # 6) 署名
-        y -= 4; c.line(MARGIN, y, W - MARGIN, y); y -= 12
-        c.setFont("HeiseiMin-W3", 8)
-        y = draw_text_lines(MARGIN, y, "※本票はセルフケアを目的とした参考資料であり、医学的診断・証明を示すものではありません。", size=8, width=90, leading=10)
-        c.drawString(MARGIN, y-10, "中央大学生活協同組合　情報通信チーム")
+    y -= 4
+    c.line(MARGIN, y, W - MARGIN, y)
+    y -= 12
+    c.setFont("HeiseiMin-W3", 8)
+    y = draw_text_lines(
+    MARGIN,
+    y,
+    "※本票はセルフケアを目的とした参考資料であり、医学的診断・証明を示すものではありません。",
+    size=8,
+    width=90,
+    leading=10
+)
+    c.drawString(MARGIN, y - 10, "中央大学生活協同組合　情報通信チーム")
 
-        c.save(); buf.seek(0)
-        st.download_button("💾 PDFを保存", buf.getvalue(),
-                           file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
-                           mime="application/pdf")
+# === PDF生成・保存（ワンクリック動作） ===
+    c.save()
+    buf.seek(0)
 
-    # 再実行
+    st.download_button(
+    label="💾 PDFを保存",
+    data=buf.getvalue(),
+    file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
+    mime="application/pdf"
+)
+
+# 再実行ボタン
     if st.button("🔁 もう一度やり直す"):
-        st.session_state.page=0; st.session_state.ans=[None]*len(Q); st.rerun()
+    st.session_state.page = 0
+    st.session_state.ans = [None] * len(Q)
+    st.rerun()
