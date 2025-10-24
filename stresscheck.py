@@ -282,13 +282,7 @@ else:
         file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
         mime="application/pdf"
     )
-        st.download_button(
-            label="📄 PDFをダウンロード",
-            data=buf.getvalue(),
-            file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
-            mime="application/pdf"
-        )
-
-    if st.button("🔁 もう一度やり直す"):
+      if st.button("🔁 もう一度やり直す"):
         st.session_state.page=0; st.session_state.ans=[None]*len(Q); st.rerun()
+
 
