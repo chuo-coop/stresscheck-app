@@ -348,7 +348,7 @@ else:
         c.drawString(MARGIN, y-10, "中央大学生活協同組合　情報通信チーム")
 
 # PDF生成を関数化してバイトデータを返す
-    def build_pdf():
+def build_pdf():
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
     W, H = A4
@@ -361,7 +361,7 @@ else:
     buf.seek(0)
     return buf.getvalue()   # ←ここを修正ポイント！
 
-    pdf_buf = build_pdf()
+pdf_buf = build_pdf()
 
 st.download_button(
     "💾 PDFを保存",
@@ -375,5 +375,6 @@ st.download_button(
         st.session_state.page=0
         st.session_state.ans=[None]*57
         st.rerun()
+
 
 
