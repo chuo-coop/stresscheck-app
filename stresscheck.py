@@ -81,9 +81,19 @@ def restart():
     st.rerun()
 
 # ========== UI ==========
-st.title(APP_TITLE)
-st.write(DESC)
-st.divider()
+# --- ヘッダー画像を表示（中央寄せ） ---
+st.image("TITLE.png", use_column_width=True)
+
+# --- 説明文 ---
+st.markdown(
+    "<p style='text-align:center; font-size:16px;'>"
+    "本チェックは厚生労働省の「職業性ストレス簡易調査票（57項目）」をもとに作成した、"
+    "中央大学生活協同組合セルフケア版です。回答結果は端末内のみで処理され、保存・送信は行われません。"
+    "</p>",
+    unsafe_allow_html=True
+)
+st.markdown("<hr>", unsafe_allow_html=True)
+
 
 if st.session_state.page < len(QUESTIONS):
     q_num = st.session_state.page + 1
