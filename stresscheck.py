@@ -110,10 +110,19 @@ p = st.session_state.page
 if p < len(Q):
     st.subheader(f"Q{p+1} / {len(Q)}")
     st.write(Q[p])
-    opts=["（未選択）"]+CHOICES
-    idx=st.session_state.ans[p] if st.session_state.ans[p] else 0
-    ch=st.radio("回答を選んでください：", opts, index=idx, key=f"q_{p+1}")
-    if ch!="（未選択）": st.session_state.ans[p]=opts.index(ch)
+    opts = CHOICES  # 「未選択」を削除
+
+# 回答が未設定(None)なら初期インデックスは-1（どれも選ばれない）
+　　idx = (st.session_state.ans[p] - 1) if st.session_state.ans[p] else None
+
+# Streamlitは index=None を許容しないため、未選択状態ではkeyだけ保持して描画
+　　ch = st.radio(
+    "回答を選んでください：",
+    opts,
+    index=idx if idx is not None else 0,
+    key=f"q_{p+1}"
+)
+
     if st.button("次へ ▶"): st.session_state.page+=1; st.rerun()
     if p>0 and st.button("◀ 前へ"): st.session_state.page-=1; st.rerun()
 
