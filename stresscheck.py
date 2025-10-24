@@ -368,7 +368,7 @@ st.download_button(
 )
 
 # 再実行ボタン
-if st.button("🔁 もう一度やり直す"):
+    if st.button("🔁 もう一度やり直す"):
     st.session_state.page = 0
     st.session_state.ans = [None] * len(Q)
     st.rerun()
