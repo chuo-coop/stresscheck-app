@@ -341,12 +341,12 @@ else:
         for t in ["１）睡眠・食事・軽い運動のリズムを整える。","２）仕事の量・締切・優先順位を整理する。","３）２週間以上続く不調は専門相談を。"]:
             c.drawString(MARGIN+12, y, t); y -= 12
 
-        # 6) 署名
-    y -= 4
-    c.line(MARGIN, y, W - MARGIN, y)
-    y -= 12
-    c.setFont("HeiseiMin-W3", 8)
-    y = draw_text_lines(
+       # 6) 署名
+y -= 4
+c.line(MARGIN, y, W - MARGIN, y)
+y -= 12
+c.setFont("HeiseiMin-W3", 8)
+y = draw_text_lines(
     MARGIN,
     y,
     "※本票はセルフケアを目的とした参考資料であり、医学的診断・証明を示すものではありません。",
@@ -354,13 +354,13 @@ else:
     width=90,
     leading=10
 )
-    c.drawString(MARGIN, y - 10, "中央大学生活協同組合　情報通信チーム")
+c.drawString(MARGIN, y - 10, "中央大学生活協同組合　情報通信チーム")
 
 # === PDF生成・保存（ワンクリック動作） ===
-    c.save()
-    buf.seek(0)
+c.save()
+buf.seek(0)
 
-    st.download_button(
+st.download_button(
     label="💾 PDFを保存",
     data=buf.getvalue(),
     file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
@@ -368,7 +368,7 @@ else:
 )
 
 # 再実行ボタン
-    if st.button("🔁 もう一度やり直す"):
+if st.button("🔁 もう一度やり直す"):
     st.session_state.page = 0
     st.session_state.ans = [None] * len(Q)
     st.rerun()
