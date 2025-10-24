@@ -191,14 +191,16 @@ else:
 
     st.caption("中央大学生活協同組合　情報通信チーム")
 
-    # ---------- PDF出力部（アプリ画面をA4一枚PDF化） ----------
-    if st.button("💾 PDFを保存"):
+   # ---------- PDF出力部（アプリ画面をA4一枚PDF化） ----------
+if st.button("💾 PDFを保存"):
     buf = io.BytesIO()
     from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.utils import ImageReader
     from reportlab.lib import colors
     from reportlab.platypus import Table, TableStyle
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 
     W, H = A4
     c = canvas.Canvas(buf, pagesize=A4)
@@ -247,6 +249,7 @@ else:
         fig.savefig(img, format="png", bbox_inches="tight")
         img.seek(0)
         return img
+
     charts = [
         radar([A]*5, ["Workload","Skill Use","Job Control","Role","Relations"], COL["A"]),
         radar([B]*5, ["Fatigue","Irritability","Anxiety","Depression","Energy"], COL["B"]),
@@ -282,7 +285,9 @@ else:
         file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
         mime="application/pdf"
     )
-      if st.button("🔁 もう一度やり直す"):
-        st.session_state.page=0; st.session_state.ans=[None]*len(Q); st.rerun()
 
-
+# ここはボタンの外（インデント戻す）
+if st.button("🔁 もう一度やり直す"):
+    st.session_state.page = 0
+    st.session_state.ans = [None] * len(Q)
+    st.rerun()
