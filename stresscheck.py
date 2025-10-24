@@ -101,39 +101,46 @@ def radar(vals, labels, color):
     return fig
 
 # ========== Streamlit画面 ==========
-try: st.image("TITLE.png", use_column_width=True)
-except: st.markdown("### 中大生協ストレスチェック")
+try:
+    st.image("TITLE.png", use_column_width=True)
+except Exception:
+    st.markdown("### 中大生協ストレスチェック")
 st.markdown(f"<p style='text-align:center;color:#555;'>{APP_CAPTION}</p>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
 p = st.session_state.page
-    if p < len(Q):
+if p < len(Q):
     st.subheader(f"Q{p+1} / {len(Q)}")
     st.write(Q[p])
-    opts = CHOICES  # 「未選択」を削除
 
-# 回答が未設定(None)なら初期インデックスは-1（どれも選ばれない）
- idx = (st.session_state.ans[p] - 1) if st.session_state.ans[p] else None
+    # 「未選択」を表示しない
+    opts = CHOICES
+    idx = (st.session_state.ans[p] - 1) if st.session_state.ans[p] else 0
 
-# Streamlitは index=None を許容しないため、未選択状態ではkeyだけ保持して描画
     ch = st.radio(
-    "回答を選んでください：",
-    opts,
-    index=idx if idx is not None else 0,
-    key=f"q_{p+1}"
-)
+        "回答を選んでください：",
+        opts,
+        index=idx,
+        key=f"q_{p+1}"
+    )
 
-
-# 選択時に値を保存
+    # 選択を保存
     if ch:
-    st.session_state.ans[p] = CHOICES.index(ch) + 1
+        st.session_state.ans[p] = CHOICES.index(ch) + 1
 
-
-
-    if st.button("次へ ▶"): st.session_state.page+=1; st.rerun()
-    if p>0 and st.button("◀ 前へ"): st.session_state.page-=1; st.rerun()
+    # ナビゲーション
+    col_prev, col_next = st.columns(2)
+    with col_prev:
+        if p > 0 and st.button("◀ 前へ"):
+            st.session_state.page -= 1
+            st.rerun()
+    with col_next:
+        if st.button("次へ ▶"):
+            st.session_state.page += 1
+            st.rerun()
 
 else:
+
     sc=split_scores(st.session_state.ans)
     A,B,C,D = sc["A"],sc["B"],sc["C"],sc["D"]
     status = overall(A,B,C)
