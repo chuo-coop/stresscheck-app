@@ -342,7 +342,7 @@ else:
             c.drawString(MARGIN+12, y, t); y -= 12
 
        # 6) 署名
-y -= 4
+y = H - 720  # ←これを追加（任意の開始位置）
 c.line(MARGIN, y, W - MARGIN, y)
 y -= 12
 c.setFont("HeiseiMin-W3", 8)
