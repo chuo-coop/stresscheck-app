@@ -368,8 +368,8 @@ else:
         )
 
 
-# 再実行ボタン（ここは左端から開始する）
-if st.button("🔁 もう一度やり直す"):
-    st.session_state.page = 0
-    st.session_state.ans = [None] * len(Q)
-    st.rerun()
+    # 再実行ボタン（ここは結果ページでのみ表示される）
+    if st.button("🔁 もう一度やり直す"):
+        st.session_state.page = 0
+        st.session_state.ans = [None] * len(Q)
+        st.rerun()
