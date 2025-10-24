@@ -193,22 +193,95 @@ else:
 
     # ---------- PDF出力部（アプリ画面をA4一枚PDF化） ----------
     if st.button("💾 PDFを保存"):
-        tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-        st.screenshot(tmpfile.name)  # Streamlit 1.32以降で利用可能
+    buf = io.BytesIO()
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.utils import ImageReader
+    from reportlab.lib import colors
+    from reportlab.platypus import Table, TableStyle
 
-        buf = io.BytesIO()
-        c = canvas.Canvas(buf, pagesize=A4)
-        W, H = A4
-        img = Image.open(tmpfile.name)
-        iw, ih = img.size
-        ratio = min(W/iw, H/ih)
-        new_w, new_h = iw*ratio, ih*ratio
-        x = (W - new_w) / 2
-        y = (H - new_h) / 2
-        c.drawImage(tmpfile.name, x, y, width=new_w, height=new_h)
-        c.save()
-        buf.seek(0)
+    W, H = A4
+    c = canvas.Canvas(buf, pagesize=A4)
+    pdfmetrics.registerFont(UnicodeCIDFont("HeiseiMin-W3"))
 
+    margin = 50
+    y = H - margin
+    c.setFont("HeiseiMin-W3", 11)
+    c.drawString(margin, y, "職業性ストレス簡易調査票（厚労省準拠）— 中大生協セルフケア版")
+    y -= 18
+    c.setFont("HeiseiMin-W3", 9)
+    c.drawString(margin, y, f"実施日：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    y -= 10
+    c.line(margin, y, W - margin, y)
+    y -= 20
+
+    # 総合判定
+    c.setFont("HeiseiMin-W3", 10)
+    c.drawString(margin, y, f"【総合判定】{status_label}")
+    y -= 14
+    for line in textwrap.wrap(status_text, 70):
+        c.drawString(margin + 10, y, line)
+        y -= 12
+
+    # 判定表
+    y -= 10
+    data = [["区分","低い","やや低い","普通","やや高い","高い","得点"]]
+    for name,score in [("A：ストレス要因",A),("B：心身反応",B),("C：支援",C),("D：満足度",D)]:
+        lv = five_level(score)
+        row = [name]+["○" if i==lv else "" for i in range(5)]+[f"{score:.1f}"]
+        data.append(row)
+    table = Table(data, colWidths=[90,40,40,40,40,40,50])
+    table.setStyle(TableStyle([
+        ("FONT", (0,0), (-1,-1), "HeiseiMin-W3", 8),
+        ("GRID", (0,0), (-1,-1), 0.4, colors.black),
+        ("BACKGROUND", (0,0), (-1,0), colors.whitesmoke),
+        ("ALIGN", (1,1), (-2,-1), "CENTER")
+    ]))
+    tw, th = table.wrapOn(c, W, H)
+    table.drawOn(c, margin, y - th)
+    y -= th + 10
+
+    # チャート（3枚をPDFに貼り付け）
+    def fig_to_img_bytes(fig):
+        img = io.BytesIO()
+        fig.savefig(img, format="png", bbox_inches="tight")
+        img.seek(0)
+        return img
+    charts = [
+        radar([A]*5, ["Workload","Skill Use","Job Control","Role","Relations"], COL["A"]),
+        radar([B]*5, ["Fatigue","Irritability","Anxiety","Depression","Energy"], COL["B"]),
+        radar([C]*4, ["Supervisor","Coworker","Family","Satisfaction"], COL["C"])
+    ]
+    x_pos = [margin, margin + 170, margin + 340]
+    for fig, x in zip(charts, x_pos):
+        c.drawImage(ImageReader(fig_to_img_bytes(fig)), x, y - 150, width=140, height=140)
+    y -= 170
+
+    # コメント
+    c.setFont("HeiseiMin-W3", 9)
+    for label,color,key in [("A：仕事負担",COL["A"],"A"),
+                            ("B：反応",COL["B"],"B"),
+                            ("C：支援",COL["C"],"C"),
+                            ("D：満足",COL["D"],"D")]:
+        c.setFillColor(colors.HexColor(color))
+        c.drawString(margin, y, f"{label}")
+        c.setFillColor(colors.black)
+        c.drawString(margin+60, y, f"{sc[key]:.1f}点／{comments[key]}")
+        y -= 12
+
+    # フッター
+    y -= 8
+    c.setFont("HeiseiMin-W3", 8)
+    c.drawString(margin, y, "中央大学生活協同組合　情報通信チーム")
+    c.save()
+
+    buf.seek(0)
+    st.download_button(
+        label="📄 PDFをダウンロード",
+        data=buf.getvalue(),
+        file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
+        mime="application/pdf"
+    )
         st.download_button(
             label="📄 PDFをダウンロード",
             data=buf.getvalue(),
@@ -218,3 +291,4 @@ else:
 
     if st.button("🔁 もう一度やり直す"):
         st.session_state.page=0; st.session_state.ans=[None]*len(Q); st.rerun()
+
