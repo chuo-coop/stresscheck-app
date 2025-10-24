@@ -360,11 +360,8 @@ else:
         c.save()
         buf.seek(0)
 
-        st.download_button(
-            label="💾 PDFを保存",
-            data=buf.getvalue(),
-            file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
-            mime="application/pdf"
+        st.download_button("💾 PDFを保存", buf.getvalue(), f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf", "application/pdf")
+
         )
 
 
