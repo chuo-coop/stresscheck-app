@@ -82,17 +82,17 @@ def restart():
 
 # ========== UI ==========
 # --- ヘッダー画像を表示（中央寄せ） ---
-st.image("TITLE.png", use_column_width=True)
+    st.image("TITLE.png", use_column_width=True)
 
 # --- 説明文 ---
-st.markdown(
+    st.markdown(
     "<p style='text-align:center; font-size:16px;'>"
     "本チェックは厚生労働省の「職業性ストレス簡易調査票（57項目）」をもとに作成した、"
     "中央大学生活協同組合セルフケア版です。回答結果は端末内のみで処理され、保存・送信は行われません。"
     "</p>",
     unsafe_allow_html=True
 )
-st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("<hr>", unsafe_allow_html=True)
 
 
 if st.session_state.page < len(QUESTIONS):
@@ -188,20 +188,20 @@ else:
     c = canvas.Canvas(buf, pagesize=A4)
 
     # --- PNGヘッダー（中央寄せ配置） ---
-header_img = ImageReader("TITLE.png")
+    header_img = ImageReader("TITLE.png")
 
-# A4サイズ基準で中央寄せ計算
-header_width = 500
-header_height = 90
-x = (A4[0] - header_width) / 2
-y = 740
+    # A4サイズ基準で中央寄せ計算
+    header_width = 500
+    header_height = 90
+    x = (A4[0] - header_width) / 2
+    y = 740
 
-c.drawImage(header_img, x, y, width=header_width, height=header_height)
+    c.drawImage(header_img, x, y, width=header_width, height=header_height)
 
-# 日時と区切り線
-c.setFont("HeiseiMin-W3", 9)
-c.drawCentredString(A4[0]/2, y - 10, f"結果作成日時：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
-c.line(40, y - 20, A4[0] - 40, y - 20)
+    # 日時と区切り線
+    c.setFont("HeiseiMin-W3", 9)
+    c.drawCentredString(A4[0]/2, y - 10, f"結果作成日時：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    c.line(40, y - 20, A4[0] - 40, y - 20)
 
 
     # チャート
