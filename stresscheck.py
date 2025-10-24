@@ -132,6 +132,9 @@ except Exception: st.markdown("### 中大生協ストレスチェック")
 st.markdown(f"<p style='text-align:center;color:#555;'>{APP_CAPTION}</p>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
+
+# 変数pを定義（←これがないと NameError になる）
+p = st.session_state.page if "page" in st.session_state else 0
 # ==========================================================
 # 質問ページ（Q1〜Q57）
 # ==========================================================
@@ -404,3 +407,4 @@ if p >= len(Q):
         st.session_state.page = 0
         st.session_state.ans = [None] * 57
         st.rerun()
+
