@@ -365,7 +365,7 @@ pdf_buf = build_pdf()
 
 st.download_button(
     "💾 PDFを保存",
-    pdf_buf
+    pdf_buf,
     file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
     mime="application/pdf"
 )
@@ -375,6 +375,7 @@ if st.button("🔁 もう一度やり直す"):
     st.session_state.page=0
     st.session_state.ans=[None]*57
     st.rerun()
+
 
 
 
