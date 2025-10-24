@@ -107,7 +107,7 @@ st.markdown(f"<p style='text-align:center;color:#555;'>{APP_CAPTION}</p>", unsaf
 st.markdown("<hr>", unsafe_allow_html=True)
 
 p = st.session_state.page
-if p < len(Q):
+    if p < len(Q):
     st.subheader(f"Q{p+1} / {len(Q)}")
     st.write(Q[p])
     opts = CHOICES  # 「未選択」を削除
