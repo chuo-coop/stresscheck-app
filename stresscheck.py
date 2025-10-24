@@ -1,10 +1,9 @@
 # ==============================================================
-# 中大生協 ストレスチェック（厚労省57項目準拠）ver4.2（完全版）
-# 生協業務版：解析画面＋PDF出力統一仕様
+# 中大生協 ストレスチェック（厚労省57項目準拠）ver4.3
+# 生協業務版（A4縦2枚構成／完全確定仕様）
 # --------------------------------------------------------------
-# 構成：
-#   1ページ目：総合判定＋3レーダーチャート
-#   2ページ目：解析コメント＋セルフケア助言＋注意文
+# 1ページ目：総合判定＋5段階ストレス判定表
+# 2ページ目：3チャート＋解析コメント＋セルフケア助言＋署名
 # --------------------------------------------------------------
 # 依存：
 #   pip install streamlit matplotlib reportlab pillow numpy
@@ -14,9 +13,11 @@ import streamlit as st
 import io, numpy as np, matplotlib.pyplot as plt
 from datetime import datetime
 from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+from reportlab.lib import colors
+from reportlab.platypus import Table, TableStyle
 from reportlab.lib.utils import ImageReader
 
 # ========== 基本設定 ==========
@@ -53,74 +54,61 @@ REV = [
 CHOICES = ["1：そうではない","2：あまりそうではない","3：どちらともいえない","4：ややそうだ","5：そうだ"]
 
 # ========== 状態管理 ==========
-if "page" not in st.session_state:
-    st.session_state.page = 0
-if "ans" not in st.session_state:
-    st.session_state.ans = [None]*len(Q)
+if "page" not in st.session_state: st.session_state.page = 0
+if "ans" not in st.session_state: st.session_state.ans = [None]*len(Q)
 
 # ========== 関数群 ==========
 def norm100(vals):
-    s = sum(vals)
-    n = len(vals)
+    s = sum(vals); n = len(vals)
     return round((s - 1*n) / (5*n - 1*n) * 100, 1)
 
 def split_scores(ans):
-    g = {"A": [], "B": [], "C": [], "D": []}
-    for i, x in enumerate(ans):
-        if x is None:
-            continue
-        v = 6 - x if REV[i] == 1 else x
+    g={"A":[],"B":[],"C":[],"D":[]}
+    for i,x in enumerate(ans):
+        if x is None: continue
+        v = 6-x if REV[i]==1 else x
         g[QTYPE[i]].append(v)
-    return {k: norm100(v) for k, v in g.items()}
+    return {k:norm100(v) for k,v in g.items()}
 
-def overall(A, B, C):
-    if B >= 60 or (B >= 50 and (A >= 60 or C <= 40)):
-        return "高ストレス状態（専門家の相談を推奨）"
-    if B >= 50 or A >= 55 or C <= 45:
-        return "注意：ストレス反応/職場要因がやや高い傾向"
+def overall(A,B,C):
+    if B>=60 or (B>=50 and (A>=60 or C<=40)): return "高ストレス状態（専門家の相談を推奨）"
+    if B>=50 or A>=55 or C<=45: return "注意：ストレス反応/職場要因がやや高い傾向"
     return "概ね安定（現状維持で可）"
 
-def stress_comment(area, score):
-    if area == "A":
-        if score >= 60:
-            return "負担感が強い傾向あり。業務量や裁量の見直しを。"
-        elif score >= 45:
-            return "やや負担感の傾向あり。早めの調整を。"
-        else:
-            return "おおむね適正な範囲です。"
-    elif area == "B":
-        if score >= 60:
-            return "強いストレス反応が見られます。休息や専門相談を。"
-        elif score >= 45:
-            return "軽い疲労・緊張の傾向があります。"
-        else:
-            return "安定しています。"
-    elif area in ["C", "D"]:
-        if score >= 60:
-            return "支援環境が良好で満足度も高い状態です。"
-        elif score >= 45:
-            return "一定の支援があります。"
-        else:
-            return "支援不足または満足度低下の傾向あり。周囲への相談を。"
+def stress_comment(area,score):
+    if area=="A":
+        if score>=60: return "負担感が強い傾向あり。業務量や裁量の見直しを。"
+        elif score>=45: return "やや負担感の傾向あり。早めの調整を。"
+        else: return "おおむね適正な範囲です。"
+    elif area=="B":
+        if score>=60: return "強いストレス反応が見られます。休息や専門相談を。"
+        elif score>=45: return "軽い疲労・緊張の傾向があります。"
+        else: return "安定しています。"
+    elif area in ["C","D"]:
+        if score>=60: return "支援環境が良好で満足度も高い状態です。"
+        elif score>=45: return "一定の支援があります。"
+        else: return "支援不足または満足度低下の傾向あり。周囲への相談を。"
 
 def radar(vals, labels, color):
-    ang = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist()
-    vcyc = vals + [vals[0]]
-    acyc = ang + [ang[0]]
-    fig, ax = plt.subplots(figsize=(4.5, 4.5), subplot_kw=dict(polar=True))
-    ax.plot(acyc, vcyc, color=color, linewidth=2)
-    ax.fill(acyc, vcyc, color=color, alpha=0.15)
-    ax.set_xticks(ang)
-    ax.set_xticklabels(labels, color=color, fontweight="bold", fontsize=9)
-    ax.set_yticklabels([])
-    ax.set_ylim(0, 100)
+    ang = np.linspace(0,2*np.pi,len(labels),endpoint=False).tolist()
+    vcyc = vals+[vals[0]]; acyc = ang+[ang[0]]
+    fig, ax = plt.subplots(figsize=(4,4), subplot_kw=dict(polar=True))
+    ax.plot(acyc,vcyc,color=color,linewidth=2)
+    ax.fill(acyc,vcyc,color=color,alpha=0.15)
+    ax.set_xticks(ang); ax.set_xticklabels(labels,color=color,fontweight="bold",fontsize=9)
+    ax.set_yticklabels([]); ax.set_ylim(0,100)
     return fig
 
+def five_level(score):
+    if score < 20: return 0
+    elif score < 40: return 1
+    elif score < 60: return 2
+    elif score < 80: return 3
+    else: return 4
+
 # ========== Streamlit画面 ==========
-try:
-    st.image("TITLE.png", use_column_width=True)
-except Exception:
-    st.markdown("### 中大生協ストレスチェック")
+try: st.image("TITLE.png", use_column_width=True)
+except Exception: st.markdown("### 中大生協ストレスチェック")
 st.markdown(f"<p style='text-align:center;color:#555;'>{APP_CAPTION}</p>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -132,146 +120,111 @@ if p < len(Q):
     opts = CHOICES
     idx = (st.session_state.ans[p] - 1) if st.session_state.ans[p] else 0
     ch = st.radio("回答を選んでください：", opts, index=idx, key=f"q_{p+1}")
+    if ch: st.session_state.ans[p] = CHOICES.index(ch) + 1
 
-    if ch:
-        st.session_state.ans[p] = CHOICES.index(ch) + 1
-
-    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
     if st.button("次へ ▶"):
         st.session_state.page += 1
         st.rerun()
-
     if p > 0:
-        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
         if st.button("◀ 前へ"):
             st.session_state.page -= 1
             st.rerun()
 
 else:
     sc = split_scores(st.session_state.ans)
-    A, B, C, D = sc["A"], sc["B"], sc["C"], sc["D"]
-    status = overall(A, B, C)
+    A,B,C,D = sc["A"],sc["B"],sc["C"],sc["D"]
+    status = overall(A,B,C)
 
-    st.subheader("解析結果")
-    st.markdown(f"**総合判定：{status}**")
-    st.caption(f"実施日：{datetime.now().strftime('%Y年%m月%d日 %H:%M')}")
-
-    comments = {
-        "A": stress_comment("A", A),
-        "B": stress_comment("B", B),
-        "C": stress_comment("C", C),
-        "D": stress_comment("D", D)
-    }
-
-    # --- チャート3種 ---
-    chartA = radar([A]*5, ["Workload","Skill Use","Job Control","Role","Relations"], COL["A"])
-    chartB = radar([B]*5, ["Fatigue","Irritability","Anxiety","Depression","Energy"], COL["B"])
-    chartC = radar([C]*4, ["Supervisor","Coworker","Family","Satisfaction"], COL["C"])
-
-    st.markdown("#### ストレスプロファイル図（業務版）")
-    cols = st.columns(3)
-    for fig, col in zip([chartA, chartB, chartC], cols):
-        col.pyplot(fig)
-
-    st.markdown("#### 解析コメント")
-    for label, color, txt in [
-        ("WORKLOAD：仕事の負担／", COL["A"], comments["A"]),
-        ("REACTION：ストレス反応／", COL["B"], comments["B"]),
-        ("SUPPORT ：周囲の支援／", COL["C"], comments["C"]),
-        ("SATISFACTION：満足度／", COL["D"], comments["D"]),
-    ]:
-        st.markdown(f"<span style='color:{color};font-weight:bold'>{label}</span>{txt}", unsafe_allow_html=True)
-
-    st.markdown("<hr>", unsafe_allow_html=True)
+    comments = {k: stress_comment(k, sc[k]) for k in sc.keys()}
 
     # ========== PDF生成 ==========
-    buf = io.BytesIO()
-    c = canvas.Canvas(buf, pagesize=landscape(A4))
-    W, H = landscape(A4)
+    buf = io.BytesIO(); c = canvas.Canvas(buf, pagesize=A4)
+    W,H = A4
 
-    # --- 1ページ目 ---
-    c.setFont("HeiseiMin-W3", 12)
-    c.drawString(40, H-40, "職業性ストレス簡易調査票（厚労省準拠）— 中大生協セルフケア版")
-    c.setFont("HeiseiMin-W3", 9)
-    c.drawString(40, H-55, f"実施日：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    c.line(40, H-62, W-40, H-62)
-    c.setFont("HeiseiMin-W3", 11)
-    c.drawString(40, H-85, f"【総合判定】{status}")
+    # --- 1ページ目：総合判定＋5段階表 ---
+    c.setFont("HeiseiMin-W3",12)
+    c.drawString(40,H-40,"職業性ストレス簡易調査票（厚労省準拠）— 中大生協セルフケア版")
+    c.setFont("HeiseiMin-W3",9)
+    c.drawString(40,H-55,f"実施日：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    c.line(40,H-62,W-40,H-62)
 
-    figs = [chartA, chartB, chartC]
-    x0 = [60, 300, 540]
-    title_en = ["Factors Considered as Causes of Stress",
-                "Psychological and Physical Reactions Caused by Stress",
-                "Factors Influencing Stress Reactions"]
-    title_ja = ["ストレスの原因と考えられる因子",
-                "ストレスによって起こる心身の反応",
-                "ストレス反応に影響を与える因子"]
+    c.setFont("HeiseiMin-W3",11)
+    c.drawString(40,H-85,"【総合判定】")
+    c.setFont("HeiseiMin-W3",11)
+    c.drawString(130,H-85,status)
 
-    for i, (f, en, jp, col) in enumerate(zip(figs, title_en, title_ja, [COL["A"], COL["B"], COL["C"]])):
-        img = io.BytesIO()
-        f.savefig(img, format="png", bbox_inches="tight")
-        img.seek(0)
-        c.drawImage(ImageReader(img), x0[i], H-440, width=210, height=210)
-        c.setFont("HeiseiMin-W3", 9)
-        c.drawCentredString(x0[i]+105, H-460, en)
-        c.setFont("HeiseiMin-W3", 9)
-        c.drawCentredString(x0[i]+105, H-475, jp)
+    # ストレス判定表
+    data = [["区分","低い","やや低い","普通","やや高い","高い","得点"]]
+    cats = [("ストレスの要因",A),("心身のストレス反応",B),("周囲のサポート",C)]
+    total = int(A+B+C)
+    for name,score in cats:
+        lv = five_level(score)
+        row = [name] + ["○" if i==lv else "" for i in range(5)] + [f"{score:.1f}"]
+        data.append(row)
+    data.append(["合計","","","","","",f"{total:.1f}"])
 
+    table = Table(data, colWidths=[110,40,50,50,50,50,60])
+    style = TableStyle([
+        ("FONT", (0,0), (-1,-1), "HeiseiMin-W3", 10),
+        ("ALIGN", (1,0), (-1,-1), "CENTER"),
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.black),
+        ("BACKGROUND", (0,0), (-1,0), colors.whitesmoke),
+    ])
+    table.setStyle(style)
+    table.wrapOn(c,W,H); table.drawOn(c,50,H-300)
+
+    c.setFont("HeiseiMin-W3",9)
+    c.drawString(50,H-315,"※各領域は得点を100点換算で評価しています。")
     c.showPage()
 
-    # --- 2ページ目 ---
-    c.setFont("HeiseiMin-W3", 12)
-    c.drawString(40, H-40, "【解析コメント】")
-    y = H-70
-    c.setFont("HeiseiMin-W3", 10)
-    comments_color = [
-        ("WORKLOAD：仕事の負担／", comments["A"], COL["A"]),
-        ("REACTION：ストレス反応／", comments["B"], COL["B"]),
-        ("SUPPORT ：周囲の支援／", comments["C"], COL["C"]),
-        ("SATISFACTION：満足度／", comments["D"], COL["D"])
-    ]
-    for label, text, color in comments_color:
-        r, g, b = [int(color[i:i+2], 16)/255 for i in (1, 3, 5)]
-        c.setFillColorRGB(r, g, b)
-        c.drawString(40, y, label)
-        c.setFillColorRGB(0, 0, 0)
-        c.drawString(180, y, text)
-        y -= 18
+    # --- 2ページ目：チャート→コメント→セルフケア→署名 ---
+    chartA = radar([A]*5,["Workload","Skill Use","Job Control","Role","Relations"],COL["A"])
+    chartB = radar([B]*5,["Fatigue","Irritability","Anxiety","Depression","Energy"],COL["B"])
+    chartC = radar([C]*4,["Supervisor","Coworker","Family","Satisfaction"],COL["C"])
 
-    y -= 10
-    c.setFont("HeiseiMin-W3", 12)
-    c.drawString(40, y, "【セルフケアのポイント】")
-    y -= 20
-    c.setFont("HeiseiMin-W3", 10)
-    tips = [
+    figs = [chartA,chartB,chartC]
+    xpos = [60,220,380]
+    for i,f in enumerate(figs):
+        img = io.BytesIO(); f.savefig(img,format="png",bbox_inches="tight"); img.seek(0)
+        c.drawImage(ImageReader(img),xpos[i],H-260,width=150,height=150)
+
+    y = H-280
+    c.setFont("HeiseiMin-W3",12); c.drawString(40,y-140,"【解析コメント】")
+    y -= 160; c.setFont("HeiseiMin-W3",10)
+    for label,color,txt in [
+        ("WORKLOAD：仕事の負担／",COL["A"],comments["A"]),
+        ("REACTION：ストレス反応／",COL["B"],comments["B"]),
+        ("SUPPORT ：周囲の支援／",COL["C"],comments["C"]),
+        ("SATISFACTION：満足度／",COL["D"],comments["D"]),
+    ]:
+        r,g,b=[int(color[i:i+2],16)/255 for i in (1,3,5)]
+        c.setFillColorRGB(r,g,b); c.drawString(40,y,label)
+        c.setFillColorRGB(0,0,0); c.drawString(200,y,txt); y-=18
+
+    y-=10; c.setFont("HeiseiMin-W3",12); c.drawString(40,y,"【セルフケアのポイント】")
+    y-=20; c.setFont("HeiseiMin-W3",10)
+    for t in [
         "１）睡眠・食事・軽い運動のリズムを整える。",
         "２）仕事の量・締切・優先順位を整理する。",
         "３）２週間以上続く不調は専門相談を。"
-    ]
-    for t in tips:
-        c.drawString(52, y, t)
-        y -= 16
+    ]:
+        c.drawString(52,y,t); y-=16
 
-    y -= 10
-    c.line(40, y, W-40, y)
-    y -= 18
-    c.setFont("HeiseiMin-W3", 9)
-    note = [
+    y-=10; c.line(40,y,W-40,y); y-=18
+    c.setFont("HeiseiMin-W3",9)
+    for n in [
         "※本票はセルフケアを目的とした参考資料であり、",
         "　医学的診断・証明を示すものではありません。",
         "　中央大学生活協同組合　情報通信チーム"
-    ]
-    for n in note:
-        c.drawString(40, y, n)
-        y -= 14
+    ]:
+        c.drawString(40,y,n); y-=14
 
-    c.showPage()
-    c.save()
+    c.showPage(); c.save()
     buf.seek(0)
 
-    st.download_button(
-        "📄 PDFをダウンロード",
-        buf.getvalue(),
+    st.download_button("📄 PDFをダウンロード", buf.getvalue(),
         file_name=f"{datetime.now().strftime('%Y%m%d')}_ストレスチェック業務版.pdf",
-        mime="application/pdf"
-    )
+        mime="application/pdf")
+
