@@ -191,12 +191,7 @@ else:
 
     st.caption("中央大学生活協同組合　情報通信チーム")
 
-# ---------- PDF出力部（A4一枚PDF・ボタン一つだけ） ----------
-# 「PDFを保存」を押すと即生成→ダウンロードが出る方式
-if "pdf_ready" not in st.session_state:
-    st.session_state.pdf_ready = False
-    st.session_state.pdf_bytes = None
-
+# ---------- PDF出力部（最終版：設問ページ構成を壊さない・ボタン1つのみ） ----------
 if st.button("💾 PDFを保存"):
     buf = io.BytesIO()
     from reportlab.pdfgen import canvas
@@ -246,7 +241,7 @@ if st.button("💾 PDFを保存"):
     table.drawOn(c, margin, y - th)
     y -= th + 10
 
-    # チャート3つ
+    # チャート3つをPDFへ
     def fig_to_img_bytes(fig):
         img = io.BytesIO()
         fig.savefig(img, format="png", bbox_inches="tight")
@@ -281,17 +276,9 @@ if st.button("💾 PDFを保存"):
     c.save()
     buf.seek(0)
 
-    # PDFをセッションに保持（再描画時にボタンを出す）
-    st.session_state.pdf_ready = True
-    st.session_state.pdf_bytes = buf.getvalue()
-    st.rerun()
-
-# 保存完了後にだけダウンロードボタンを出す
-if st.session_state.pdf_ready:
     st.download_button(
         label="📄 PDFをダウンロード",
-        data=st.session_state.pdf_bytes,
+        data=buf.getvalue(),
         file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
         mime="application/pdf"
     )
-    st.session_state.pdf_ready = False
