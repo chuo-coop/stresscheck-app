@@ -1,5 +1,5 @@
 # ==============================================================
-# 中大生協 ストレスチェック（厚労省57項目準拠）ver4.4e
+# 中大生協 ストレスチェック（厚労省57項目準拠）ver4.5a
 # ==============================================================
 
 import streamlit as st
@@ -22,7 +22,7 @@ pdfmetrics.registerFont(UnicodeCIDFont("HeiseiMin-W3"))
 APP_CAPTION = "厚労省『職業性ストレス簡易調査票（57項目）』準拠／中央大学生活協同組合セルフケア版"
 COL = {"A": "#8B0000", "B": "#003366", "C": "#004B23", "D": "#7B3F00"}
 
-# ---------- 設問定義 ----------
+# ---------- 設問・反転定義 ----------
 Q = [
     "自分のペースで仕事ができる。","仕事の量が多い。","時間内に仕事を終えるのが難しい。","仕事の内容が高度である。",
     "自分の知識や技能を使う仕事である。","仕事に対して裁量がある。","自分の仕事の役割がはっきりしている。","自分の仕事が組織の中で重要だと思う。",
@@ -38,21 +38,14 @@ Q = [
     "現在の仕事に満足している。","現在の生活に満足している。"
 ]
 QTYPE = (["A"]*17 + ["B"]*29 + ["C"]*9 + ["D"]*2)
-
 REV = [
     1,0,0,0,1,1,1,1,1,1,0,1,1,1,1,1,1,        # A17
-    1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  # B29 ←修正済：29個
+    1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  # B29
     0,0,0,0,0,0,0,0,0,                        # C9
     1,1                                      # D2
 ]
-
 CHOICES = ["1：そうではない","2：あまりそうではない","3：どちらともいえない","4：ややそうだ","5：そうだ"]
-
 assert len(Q)==57 and len(REV)==57
-
-# ---------- 状態 ----------
-if "page" not in st.session_state: st.session_state.page = 0
-if "ans" not in st.session_state: st.session_state.ans = [None]*len(Q)
 
 # ---------- 関数 ----------
 def norm100(vals):
@@ -88,13 +81,10 @@ def radar(vals, labels, color):
 def hex_to_rgb01(hexv): return tuple(int(hexv[i:i+2],16)/255 for i in (1,3,5))
 def wrap_lines(s, width): return textwrap.wrap(s, width=width)
 
-# ---------- ヘッダ ----------
-st.markdown("### 中大生協ストレスチェック")
-st.markdown(f"<p style='text-align:center;color:#555;'>{APP_CAPTION}</p>", unsafe_allow_html=True)
-st.markdown("<hr>", unsafe_allow_html=True)
+# ---------- アプリ本体 ----------
+p = st.session_state.get("page",0)
+if "ans" not in st.session_state: st.session_state.ans = [None]*len(Q)
 
-# ---------- 質問 ----------
-p = st.session_state.page
 if p < len(Q):
     st.subheader(f"Q{p+1} / {len(Q)}")
     st.write(Q[p])
@@ -102,8 +92,6 @@ if p < len(Q):
     if ch: st.session_state.ans[p] = CHOICES.index(ch) + 1
     if st.button("次へ ▶"): st.session_state.page += 1; st.rerun()
     if p>0 and st.button("◀ 前へ"): st.session_state.page -= 1; st.rerun()
-
-# ---------- 解析 ----------
 else:
     if any(a is None for a in st.session_state.ans):
         st.error("未回答があります。全57問に回答してください。")
@@ -112,64 +100,71 @@ else:
 
     sc = split_scores(st.session_state.ans)
     A,B,C,D = sc["A"],sc["B"],sc["C"],sc["D"]
-
     st.subheader("解析結果")
-    st.markdown("**総合判定：ストレス反応／職場要因がやや高い傾向**")
-    st.markdown("疲労や負担がやや高めです。短期間の調整と支援活用を意識してください。")
-    st.caption(f"実施日：{datetime.now().strftime('%Y年%m月%d日 %H:%M')}")
+    st.markdown(f"**ストレス要因(A)：{A:.1f}　反応(B)：{B:.1f}　支援(C)：{C:.1f}　満足(D)：{D:.1f}**")
 
     st.markdown("#### ストレス判定表（5段階）")
-    def dot_row(name, score):
-        lv = five_level(score)
-        cells = ["○" if i==lv else "" for i in range(5)]
+    def dot_row(name,score):
+        lv=five_level(score); cells=["○" if i==lv else "" for i in range(5)]
         return [name]+cells+[f"{score:.1f}"]
-    df = pd.DataFrame([
+    df=pd.DataFrame([
         dot_row("ストレスの要因（A）",A),
         dot_row("心身の反応（B）",B),
         dot_row("周囲のサポート（C）",C),
         dot_row("満足度（D）",D)
     ],columns=["区分","低い","やや低い","普通","やや高い","高い","得点"])
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(df,use_container_width=True)
 
-    st.markdown("---")
-    st.markdown("#### ストレスプロファイル図")
-    chartA = radar([A]*5,["Workload","Skill Use","Job Control","Role","Relations"],COL["A"])
-    chartB = radar([B]*5,["Fatigue","Irritability","Anxiety","Depression","Energy"],COL["B"])
-    chartC = radar([C]*4,["Supervisor","Coworker","Family","Satisfaction"],COL["C"])
-    c1,c2,c3 = st.columns(3)
-    for fig,col in zip([chartA,chartB,chartC],[c1,c2,c3]): col.pyplot(fig)
+    # ---------- PDF出力 ----------
+    if st.button("💾 PDFを保存"):
+        buf=io.BytesIO()
+        c=canvas.Canvas(buf,pagesize=A4)
+        W,H=A4; MARGIN=57; y=H-MARGIN
+        c.setFont("HeiseiMin-W3",12)
+        c.drawString(MARGIN,y,"職業性ストレス簡易調査票（厚労省準拠）—　中大生協セルフケア版"); y-=15
+        c.setFont("HeiseiMin-W3",9)
+        c.drawString(MARGIN,y,f"実施日：{datetime.now().strftime('%Y-%m-%d %H:%M')}"); y-=8
+        c.line(MARGIN,y,W-MARGIN,y); y-=14
 
-    st.markdown("#### セルフケアのポイント")
-    for t in [
-        "１）睡眠・食事・軽い運動のリズムを整える。",
-        "２）仕事の量・締切・優先順位を整理する。",
-        "３）２週間以上続く不調は専門相談を。"
-    ]: st.write(t)
+        # 判定表
+        data=[["区分","低い","やや低い","普通","やや高い","高い","得点"],
+              ["ストレスの要因（A）","","","","","",f"{A:.1f}"],
+              ["心身の反応（B）","","","","","",f"{B:.1f}"],
+              ["周囲のサポート（C）","","","","","",f"{C:.1f}"],
+              ["満足度（D）","","","","","",f"{D:.1f}"]]
+        t=Table(data,colWidths=[120,44,44,44,44,44,56])
+        t.setStyle(TableStyle([
+            ("FONT",(0,0),(-1,-1),"HeiseiMin-W3",9),
+            ("GRID",(0,0),(-1,-1),0.4,colors.black),
+            ("BACKGROUND",(0,0),(-1,0),colors.whitesmoke)
+        ]))
+        tw,th=t.wrapOn(c,W,H); t.drawOn(c,MARGIN,y-th); y-=th+12
 
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.caption("※本票はセルフケアを目的とした参考資料であり、医学的診断・証明を示すものではありません。")
-    st.caption("中央大学生活協同組合　情報通信チーム")
+        # チャート
+        def fig_to_img_bytes(fig):
+            img=io.BytesIO(); fig.savefig(img,format="png",bbox_inches="tight"); img.seek(0); return img
+        for fig,xpos in zip([radar([A]*5,["Workload","Skill","Control","Role","Relations"],COL["A"]),
+                             radar([B]*5,["Fatigue","Irritability","Anxiety","Depression","Energy"],COL["B"]),
+                             radar([C]*4,["Supervisor","Coworker","Family","Satisfaction"],COL["C"])],
+                            [MARGIN,MARGIN+180,MARGIN+360]):
+            c.drawImage(ImageReader(fig_to_img_bytes(fig)),xpos,y-140,width=140,height=140)
+        y-=160
 
-    # ---------- PDF生成 ----------
-    buf = io.BytesIO()
-    c = canvas.Canvas(buf, pagesize=A4)
-    W,H = A4; MARGIN=57
-    y = H - MARGIN
-    c.setFont("HeiseiMin-W3",11)
-    c.drawString(MARGIN,y,"職業性ストレス簡易調査票（厚労省準拠）— 中大生協セルフケア版"); y-=14
-    c.setFont("HeiseiMin-W3",9)
-    c.drawString(MARGIN,y,f"実施日：{datetime.now().strftime('%Y-%m-%d %H:%M')}"); y-=10
-    c.line(MARGIN,y,W-MARGIN,y); y-=12
-    c.drawString(MARGIN,y,"【総合判定】ストレス反応／職場要因がやや高い傾向"); y-=12
-    c.drawString(MARGIN+20,y,"疲労や負担がやや高めです。短期間の調整と支援活用を意識してください。"); y-=20
-    c.setFont("HeiseiMin-W3",8)
-    c.drawString(MARGIN,y,"※本票はセルフケアを目的とした参考資料であり、医学的診断・証明を示すものではありません。"); y-=10
-    c.drawString(MARGIN,y,"中央大学生活協同組合　情報通信チーム")
-    c.save(); buf.seek(0)
+        # コメント
+        c.setFont("HeiseiMin-W3",9)
+        c.drawString(MARGIN,y,"【セルフケアのポイント】"); y-=12
+        for t in ["１）睡眠・食事・軽い運動のリズムを整える。","２）仕事の量・締切・優先順位を整理する。","３）２週間以上続く不調は専門相談を。"]:
+            c.drawString(MARGIN+12,y,t); y-=12
+        y-=6
+        c.line(MARGIN,y,W-MARGIN,y); y-=12
+        c.setFont("HeiseiMin-W3",8)
+        c.drawString(MARGIN,y,"※本票はセルフケアを目的とした参考資料であり、医学的診断・証明を示すものではありません。"); y-=10
+        c.drawString(MARGIN,y,"中央大学生活協同組合　情報通信チーム")
+        c.save(); buf.seek(0)
 
-    st.download_button("💾 PDFを保存", buf.getvalue(), f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf", "application/pdf")
+        st.download_button("📄 PDFをダウンロード",buf.getvalue(),
+                           file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
+                           mime="application/pdf")
 
     if st.button("🔁 もう一度やり直す"):
-        st.session_state.page=0
-        st.session_state.ans=[None]*len(Q)
-        st.rerun()
+        st.session_state.page=0; st.session_state.ans=[None]*len(Q); st.rerun()
