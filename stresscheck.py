@@ -1,5 +1,5 @@
 # ==============================================================
-# 中大生協 ストレスチェック（厚労省57項目準拠）ver4.4（最終）
+# 中大生協 ストレスチェック（厚労省57項目準拠）ver4.4b
 # 仕様：アプリ表示＝A4縦1枚PDFを完全一致
 # 構成順：総合判定 → 5段階表 → 3チャート（和訳付）→ 解析コメント → セルフケア → 署名
 # 余白：上下 57pt（約20mm）固定
@@ -124,8 +124,7 @@ def radar(vals, labels, color):
 def hex_to_rgb01(hexv):
     return tuple(int(hexv[i:i+2],16)/255 for i in (1,3,5))
 
-def wrap_lines(s, width):
-    return textwrap.wrap(s, width=width)
+def wrap_lines(s, width): return textwrap.wrap(s, width=width)
 
 # ---------- ヘッダ ----------
 try: st.image("TITLE.png", use_column_width=True)
@@ -141,18 +140,19 @@ if p < len(Q):
     opts = CHOICES
     idx = (st.session_state.ans[p] - 1) if st.session_state.ans[p] else 0
     ch = st.radio("回答を選んでください：", opts, index=idx, key=f"q_{p+1}")
-    if ch:
-        st.session_state.ans[p] = CHOICES.index(ch) + 1
+    if ch: st.session_state.ans[p] = CHOICES.index(ch) + 1
 
-    col_prev, col_next = st.columns(2)
-    with col_prev:
-        if p > 0 and st.button("◀ 前へ"): st.session_state.page -= 1; st.rerun()
-    with col_next:
-        if st.button("次へ ▶"): st.session_state.page += 1; st.rerun()
+    # 縦配置：次へ → 前へ（宣言遵守）
+    if st.button("次へ ▶"):
+        st.session_state.page += 1
+        st.rerun()
+    if p > 0 and st.button("◀ 前へ"):
+        st.session_state.page -= 1
+        st.rerun()
 
 # ---------- 解析（アプリ） ----------
 else:
-    # 全回答チェック
+    # 全回答確認
     if any(a is None for a in st.session_state.ans):
         st.error("未回答があります。全57問に回答してください。")
         if st.button("入力に戻る"): st.session_state.page = 0; st.rerun()
@@ -207,11 +207,10 @@ else:
         with col:
             st.markdown(f"**{title}**")
             st.pyplot(fig)
-            # 対訳を折返しで中央寄せ表示
             items_html=[]
             for e,j in pairs:
                 line = f"{e}＝{j}"
-                wrapped = "<br>".join(textwrap.wrap(line, width=14))
+                wrapped = "<br>".join(wrap_lines(line, 14))
                 items_html.append(f"<span style='font-size:11px;line-height:1.35'><b style='color:{color}'>{wrapped}</b></span>")
             st.markdown(f"<div style='text-align:center'>{'<br>'.join(items_html)}</div>", unsafe_allow_html=True)
 
@@ -247,7 +246,7 @@ else:
 
         def draw_text_lines(x, y, text, font="HeiseiMin-W3", size=9, width=60, leading=12):
             c.setFont(font, size)
-            for line in textwrap.wrap(text, width):
+            for line in wrap_lines(text, width):
                 c.drawString(x, y, line); y -= leading
             return y
 
@@ -263,7 +262,7 @@ else:
         c.drawString(MARGIN, y, f"【総合判定】{status_label}"); y -= 14
         y = draw_text_lines(MARGIN+20, y, status_text, size=9, width=60, leading=12); y -= 6
 
-        # 2) 5段階表（PDF）
+        # 2) 5段階表
         data = [["区分","低い","やや低い","普通","やや高い","高い","得点"]]
         for name,score in [("ストレスの要因（A）",A),("心身の反応（B）",B),("周囲のサポート（C）",C),("満足度（D）",D)]:
             lv = five_level(score)
@@ -287,10 +286,8 @@ else:
         y = draw_text_lines(MARGIN, y, "※各領域は100点換算。サポート・満足度は高得点ほど支援・満足が十分。", size=8, width=90, leading=10); y -= 6
 
         # 3) チャート3種（横並び）
-        # 画像を作成
         def fig_to_img_bytes(fig):
             img = io.BytesIO(); fig.savefig(img, format="png", bbox_inches="tight"); img.seek(0); return img
-
         figs = [chartA, chartB, chartC]
         titles_ja = ["ストレスの原因と考えられる因子","ストレスによって起こる心身の反応","ストレス反応に影響を与える因子"]
         pairs_list = [
@@ -299,31 +296,30 @@ else:
             [("Supervisor","上司支援"),("Coworker","同僚支援"),("Family","家族・友人"),("Satisfaction","満足度")],
         ]
         colors_hex = [COL["A"], COL["B"], COL["C"]]
-
-        # 配置
         chart_w, chart_h = 140, 140
         gap_x = 18
         x_positions = [MARGIN, MARGIN + chart_w + gap_x, MARGIN + (chart_w + gap_x)*2]
-        # タイトルは7pt・チャート色
-        for i,(fig,x0,ttl,hexcol,pairs) in enumerate(zip(figs,x_positions,titles_ja,colors_hex,pairs_list)):
+        top_y = y  # タイトル基準線
+        for fig, x0, ttl, hexcol, pairs in zip(figs, x_positions, titles_ja, colors_hex, pairs_list):
             r,g,b = hex_to_rgb01(hexcol)
             c.setFont("HeiseiMin-W3", 7); c.setFillColorRGB(r,g,b)
-            c.drawCentredString(x0 + chart_w/2, y, ttl)
+            c.drawCentredString(x0 + chart_w/2, top_y, ttl)
             c.setFillColorRGB(0,0,0)
             img = fig_to_img_bytes(fig)
-            c.drawImage(ImageReader(img), x0, y - chart_h - 6, width=chart_w, height=chart_h)
-            # 英和対訳（折返し）
-            yy = y - chart_h - 12
+            c.drawImage(ImageReader(img), x0, top_y - chart_h - 6, width=chart_w, height=chart_h)
+        # 最下段の凡例行のyを算出しながら描画
+        yy_list = []
+        for x0, hexcol, pairs in zip(x_positions, colors_hex, pairs_list):
+            r,g,b = hex_to_rgb01(hexcol)
+            yy = top_y - chart_h - 12
             c.setFont("HeiseiMin-W3", 7)
             for e,j in pairs:
                 line = f"{e}＝{j}"
-                for ln in textwrap.wrap(line, width=14):
-                    # 英単語を色太字にする代替：前置き色行＋黒行の二段に分けず、一括描画（PDFは太字CIDが乏しいため色のみ）
+                for ln in wrap_lines(line, 14):
                     c.setFillColorRGB(r,g,b); c.drawCentredString(x0 + chart_w/2, yy, ln)
-                    c.setFillColorRGB(0,0,0)
-                    yy -= 9
-            # 次のボックス位置とのベースライン合わせ
-        y = yy - 8
+                    c.setFillColorRGB(0,0,0); yy -= 9
+            yy_list.append(yy)
+        y = min(yy_list) - 8
 
         # 4) 解析コメント
         c.setFont("HeiseiMin-W3", 11); c.drawString(MARGIN, y, "【解析コメント（点数／コメント）】"); y -= 16
@@ -342,9 +338,7 @@ else:
         y -= 6
         c.setFont("HeiseiMin-W3", 11); c.drawString(MARGIN, y, "【セルフケアのポイント】"); y -= 14
         c.setFont("HeiseiMin-W3", 9)
-        for t in ["１）睡眠・食事・軽い運動のリズムを整える。",
-                  "２）仕事の量・締切・優先順位を整理する。",
-                  "３）２週間以上続く不調は専門相談を。"]:
+        for t in ["１）睡眠・食事・軽い運動のリズムを整える。","２）仕事の量・締切・優先順位を整理する。","３）２週間以上続く不調は専門相談を。"]:
             c.drawString(MARGIN+12, y, t); y -= 12
 
         # 6) 署名
