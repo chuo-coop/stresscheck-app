@@ -108,17 +108,19 @@ if st.session_state.page < len(QUESTIONS):
 
     choice = st.radio("回答を選んでください：", choice_set, index=index_val, key=f"q_{q_num}")
 
-    st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
-    c1, c2 = st.columns(2)
-    with c1:
+    t.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+    col_spacer, col_prev, col_next = st.columns([2, 1, 1])
+
+    with col_prev:
+        if st.session_state.page > 0:
+            if st.button("◀ 前へ"):
+                go_prev()
+
+    with col_next:
         if choice:
             st.session_state.answers[st.session_state.page] = choice_set.index(choice) + 1
             if st.button("次へ ▶"):
                 go_next()
-    with c2:
-        if st.session_state.page > 0:
-            if st.button("◀ 前へ"):
-                go_prev()
 
 else:
     st.success("🎉 回答完了！解析を開始します。")
