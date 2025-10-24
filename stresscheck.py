@@ -191,23 +191,26 @@ else:
 
     st.caption("中央大学生活協同組合　情報通信チーム")
 
-   # ---------- PDF出力部（アプリ画面をA4一枚PDF化） ----------
+# ---------- PDF出力部（A4一枚PDF・ボタン一つだけ） ----------
+# 「PDFを保存」を押すと即生成→ダウンロードが出る方式
+if "pdf_ready" not in st.session_state:
+    st.session_state.pdf_ready = False
+    st.session_state.pdf_bytes = None
+
 if st.button("💾 PDFを保存"):
     buf = io.BytesIO()
     from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import A4
-    from reportlab.lib.utils import ImageReader
     from reportlab.lib import colors
+    from reportlab.lib.utils import ImageReader
     from reportlab.platypus import Table, TableStyle
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 
     W, H = A4
     c = canvas.Canvas(buf, pagesize=A4)
     pdfmetrics.registerFont(UnicodeCIDFont("HeiseiMin-W3"))
-
     margin = 50
     y = H - margin
+
     c.setFont("HeiseiMin-W3", 11)
     c.drawString(margin, y, "職業性ストレス簡易調査票（厚労省準拠）— 中大生協セルフケア版")
     y -= 18
@@ -243,13 +246,12 @@ if st.button("💾 PDFを保存"):
     table.drawOn(c, margin, y - th)
     y -= th + 10
 
-    # チャート（3枚をPDFに貼り付け）
+    # チャート3つ
     def fig_to_img_bytes(fig):
         img = io.BytesIO()
         fig.savefig(img, format="png", bbox_inches="tight")
         img.seek(0)
         return img
-
     charts = [
         radar([A]*5, ["Workload","Skill Use","Job Control","Role","Relations"], COL["A"]),
         radar([B]*5, ["Fatigue","Irritability","Anxiety","Depression","Energy"], COL["B"]),
@@ -277,17 +279,19 @@ if st.button("💾 PDFを保存"):
     c.setFont("HeiseiMin-W3", 8)
     c.drawString(margin, y, "中央大学生活協同組合　情報通信チーム")
     c.save()
-
     buf.seek(0)
+
+    # PDFをセッションに保持（再描画時にボタンを出す）
+    st.session_state.pdf_ready = True
+    st.session_state.pdf_bytes = buf.getvalue()
+    st.rerun()
+
+# 保存完了後にだけダウンロードボタンを出す
+if st.session_state.pdf_ready:
     st.download_button(
         label="📄 PDFをダウンロード",
-        data=buf.getvalue(),
+        data=st.session_state.pdf_bytes,
         file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
         mime="application/pdf"
     )
-
-# ここはボタンの外（インデント戻す）
-if st.button("🔁 もう一度やり直す"):
-    st.session_state.page = 0
-    st.session_state.ans = [None] * len(Q)
-    st.rerun()
+    st.session_state.pdf_ready = False
