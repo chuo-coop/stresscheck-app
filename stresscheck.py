@@ -113,7 +113,7 @@ if p < len(Q):
     opts = CHOICES  # 「未選択」を削除
 
 # 回答が未設定(None)なら初期インデックスは-1（どれも選ばれない）
-  idx = (st.session_state.ans[p] - 1) if st.session_state.ans[p] else None
+ idx = (st.session_state.ans[p] - 1) if st.session_state.ans[p] else None
 
 # Streamlitは index=None を許容しないため、未選択状態ではkeyだけ保持して描画
     ch = st.radio(
