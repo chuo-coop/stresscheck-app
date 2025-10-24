@@ -123,6 +123,13 @@ if p < len(Q):
     key=f"q_{p+1}"
 )
 
+
+# 選択時に値を保存
+    if ch:
+    st.session_state.ans[p] = CHOICES.index(ch) + 1
+
+
+
     if st.button("次へ ▶"): st.session_state.page+=1; st.rerun()
     if p>0 and st.button("◀ 前へ"): st.session_state.page-=1; st.rerun()
 
