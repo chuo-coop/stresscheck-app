@@ -169,27 +169,41 @@ else:
     pdfmetrics.registerFont(UnicodeCIDFont("HeiseiMin-W3"))
     c = canvas.Canvas(buf, pagesize=A4)
 
+    # --- PNGヘッダー（中央寄せ配置・透過対応＋白背景） ---
     header_img = ImageReader("TITLE.png")
-    header_width, header_height = 500, 90
+    header_width = 500
+    header_height = 90
     x = (A4[0] - header_width) / 2
-    y = 740
-    c.drawImage(header_img, x, y, width=header_width, height=header_height)
-    c.setFont("HeiseiMin-W3", 9)
-    c.drawCentredString(A4[0] / 2, y - 10, f"結果作成日時：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    c.line(40, y - 20, A4[0] - 40, y - 20)
+    y = 760  # 少し上にしてチャートと重ならないように調整
 
-    c.drawImage(ImageReader(img_buf), 60, 450, width=300, height=300)
-    y = 430
+    # 白背景（透過PNGの黒化防止）
+    c.setFillColorRGB(1, 1, 1)
+    c.rect(x - 5, y - 5, header_width + 10, header_height + 10, fill=1, stroke=0)
+
+    # ヘッダー画像描画
+    c.drawImage(header_img, x, y, width=header_width, height=header_height, mask='auto')
+
+    # 日時と区切り線（下に余裕を持たせる）
+    c.setFont("HeiseiMin-W3", 9)
+    c.drawCentredString(A4[0] / 2, y - 18, f"結果作成日時：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    c.line(40, y - 28, A4[0] - 40, y - 28)
+
+    # --- レーダーチャート配置（下げて重なり防止） ---
+    c.drawImage(ImageReader(img_buf), 60, 400, width=300, height=300)
+
+    # --- 総合判定 ---
+    y = 380
     c.setFont("HeiseiMin-W3", 11)
     c.drawString(40, y, f"総合判定：{status}")
     y -= 22
 
+    # --- 各領域スコア表示 ---
     c.setFont("HeiseiMin-W3", 10)
     def set_rgb(hexcol):
-        r = int(hexcol[1:3],16)/255
-        g = int(hexcol[3:5],16)/255
-        b = int(hexcol[5:7],16)/255
-        c.setFillColorRGB(r,g,b)
+        r = int(hexcol[1:3], 16) / 255
+        g = int(hexcol[3:5], 16) / 255
+        b = int(hexcol[5:7], 16) / 255
+        c.setFillColorRGB(r, g, b)
 
     blocks = [
         ("A. 仕事の負担感", A_score, 45, "高いほど負担感が強い", COLORS["A"]),
@@ -197,12 +211,12 @@ else:
         ("C. 周囲のサポート", C_score, 35, "高いほど支援が多い", COLORS["C"]),
         ("D. 仕事や生活の満足感", D_score, 30, "高いほど満足度が高い", COLORS["D"]),
     ]
+
     for title, val, avg, meaning, color in blocks:
         set_rgb(color)
         c.drawString(40, y, f"{title}　あなた：{val:.1f}　全国平均：{avg:.1f}　→ {meaning}")
         y -= 14
-        c.setFillColorRGB(0,0,0)
-        y -= 18
+        c.setFi
 
     # 注意書き
     y -= 30
