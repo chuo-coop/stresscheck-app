@@ -251,117 +251,138 @@ else:
     st.caption("※本票はセルフケアを目的とした参考資料であり、医学的診断・証明を示すものではありません。")
     st.caption("中央大学生活協同組合　情報通信チーム")
 
-    # ========== PDF生成 ==========
-    buf = io.BytesIO(); c = canvas.Canvas(buf, pagesize=A4)
-    W,H = A4
+# ========== PDF生成（A4縦1ページ版） ==========
+if st.button("📄 PDFを生成・ダウンロード"):
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    W, H = A4
 
-    # --- 1ページ目：総合判定＋5段階表 ---
-    c.setFont("HeiseiMin-W3",12)
-    c.drawString(40,H-40,"職業性ストレス簡易調査票（厚労省準拠）— 中大生協セルフケア版")
-    c.setFont("HeiseiMin-W3",9)
-    c.drawString(40,H-55,f"実施日：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    c.line(40,H-62,W-40,H-62)
+    # --- ヘッダー ---
+    c.setFont("HeiseiMin-W3", 12)
+    c.drawString(40, H - 40, "職業性ストレス簡易調査票（厚労省準拠）— 中大生協セルフケア版")
+    c.setFont("HeiseiMin-W3", 9)
+    c.drawString(40, H - 55, f"実施日：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    c.line(40, H - 62, W - 40, H - 62)
 
-    c.setFont("HeiseiMin-W3",11)
-    c.drawString(40,H-85,"【総合判定】")
-    c.setFont("HeiseiMin-W3",11)
-    c.drawString(130,H-85, f"{overall_label(A,B,C)}")
-    c.setFont("HeiseiMin-W3",9)
-    c.drawString(40,H-105, status_text)
+    # --- 総合判定 ---
+    c.setFont("HeiseiMin-W3", 11)
+    c.drawString(40, H - 80, "【総合判定】")
+    c.setFont("HeiseiMin-W3", 9)
+    c.drawString(120, H - 80, status_detail)
 
-    # 5段階表（PDF）
-    data = [["区分","低い","やや低い","普通","やや高い","高い","得点"]]
-    cats = [("ストレスの要因（A）",A),("心身の反応（B）",B),("周囲のサポート（C）",C)]
-    for name,score in cats:
+    # --- ストレス判定表（5段階） ---
+    data = [["区分", "低い", "やや低い", "普通", "やや高い", "高い", "得点"]]
+    cats = [("ストレスの要因", A), ("心身のストレス反応", B), ("周囲のサポート", C)]
+    total = A + B + C
+    for name, score in cats:
         lv = five_level(score)
-        row = [name] + ["○" if i==lv else "" for i in range(5)] + [f"{score:.1f}"]
+        row = [name] + ["○" if i == lv else "" for i in range(5)] + [f"{score:.1f}"]
         data.append(row)
-    # 意味説明行
-    data.append(["欄の意味","20未満","20–39","40–59","60–79","80以上","100点換算"])
+    data.append(["合計", "", "", "", "", "", f"{total:.1f}"])
 
-    table = Table(data, colWidths=[130,50,60,60,60,60,70])
+    table = Table(data, colWidths=[110, 45, 45, 45, 45, 45, 55])
     style = TableStyle([
-        ("FONT", (0,0), (-1,-1), "HeiseiMin-W3", 10),
-        ("ALIGN", (1,1), (-2,-2), "CENTER"),
-        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-        ("GRID", (0,0), (-1,-1), 0.5, colors.black),
-        ("BACKGROUND", (0,0), (-1,0), colors.whitesmoke),
-        ("BACKGROUND", (0,-1), (-1,-1), colors.whitesmoke),
-        ("ROWBACKGROUNDS", (0,1), (-1,3), [colors.white, colors.HexColor("#FAFAFA")]),
+        ("FONT", (0, 0), (-1, -1), "HeiseiMin-W3", 9),
+        ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.black),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.whitesmoke),
+        ("ALIGN", (0, 1), (0, -1), "LEFT"),
     ])
     table.setStyle(style)
-    table.wrapOn(c,W,H); table.drawOn(c,40,H-360)
+    table.wrapOn(c, W, H)
+    table.drawOn(c, 45, H - 310)
 
-    c.setFont("HeiseiMin-W3",9)
-    c.drawString(40,H-375,"※各欄の意味：5段階は上表の基準に該当する欄に「○」。得点は回答から算出した100点換算スコア。")
-    c.showPage()
+    c.setFont("HeiseiMin-W3", 8)
+    c.drawString(45, H - 325, "※列の意味：低い＝リスク小／やや低い＝経過観察／普通＝中間域／やや高い＝早期調整推奨／高い＝優先対処。")
+    c.drawString(45, H - 338, "※各領域は100点換算。サポートは高得点ほど支援十分。")
 
-    # --- 2ページ目：チャート→コメント→セルフケア→署名 ---
-    # チャート（PDF）
-    def draw_chart(fig, x, y, w=150, h=150, title_jp="", legend_pairs=None):
+    # --- チャート3種（横並び・タイトル7pt・対訳改行） ---
+    def draw_chart(fig, x, y, title_ja, label_pairs, color):
+        # タイトル（7pt）
+        c.setFont("HeiseiMin-W3", 7)
+        c.setFillColorRGB(int(color[1:3],16)/255,int(color[3:5],16)/255,int(color[5:7],16)/255)
+        c.drawCentredString(x + 70, y + 175, title_ja)
+        c.setFillColorRGB(0,0,0)
+
+        # 画像
         img = io.BytesIO()
         fig.savefig(img, format="png", bbox_inches="tight")
         img.seek(0)
-        c.setFont("HeiseiMin-W3",11)
-        c.drawString(x, y+h+22, title_jp)  # 上段：日本語タイトル
-        c.drawImage(ImageReader(img), x, y, width=w, height=h)
-        if legend_pairs:
-            c.setFont("HeiseiMin-W3",8)
-            legend_text = " / ".join([f"{e}＝{j}" for e,j in legend_pairs])
-            c.drawString(x, y-12, legend_text)  # 下段：英単語→和訳
+        c.drawImage(ImageReader(img), x, y, width=140, height=140)
 
-    chartA_pdf = radar([A]*5, ["Workload","Skill Use","Job Control","Role","Relations"], COL["A"])
-    chartB_pdf = radar([B]*5, ["Fatigue","Irritability","Anxiety","Depression","Energy"], COL["B"])
-    chartC_pdf = radar([C]*4, ["Supervisor","Coworker","Family","Satisfaction"], COL["C"])
+        # 英語対訳（改行対応）
+        c.setFont("HeiseiMin-W3", 7)
+        text_y = y - 10
+        for pair in label_pairs:
+            c.drawCentredString(x + 70, text_y, pair)
+            text_y -= 9
 
-    draw_chart(chartA_pdf, 50,  H-300, title_jp="ストレスの原因と考えられる因子",
-               legend_pairs=[("Workload","仕事の負担"),("Skill Use","技能の活用"),("Job Control","裁量"),("Role","役割"),("Relations","関係性")])
-    draw_chart(chartB_pdf, 230, H-300, title_jp="ストレスによって起こる心身の反応",
-               legend_pairs=[("Fatigue","疲労"),("Irritability","いらつき"),("Anxiety","不安"),("Depression","抑うつ"),("Energy","活気")])
-    draw_chart(chartC_pdf, 410, H-300, title_jp="ストレス反応に影響を与える因子",
-               legend_pairs=[("Supervisor","上司"),("Coworker","同僚"),("Family","家族・友人"),("Satisfaction","満足度")])
+    # 英語対訳リスト生成
+    labels_A = ["Workload＝仕事の負担", "Skill Use＝技能の活用", "Job Control＝裁量", "Role＝役割", "Relations＝関係性"]
+    labels_B = ["Fatigue＝疲労", "Irritability＝いらだち", "Anxiety＝不安", "Depression＝抑うつ", "Energy＝活力"]
+    labels_C = ["Supervisor＝上司支援", "Coworker＝同僚支援", "Family＝家族・友人", "Satisfaction＝満足度"]
 
-    # 解析コメント（点数／コメント）
-    y = H-330
-    c.setFont("HeiseiMin-W3",12); c.drawString(40,y-150,"【解析コメント（点数／コメント）】")
-    y -= 170; c.setFont("HeiseiMin-W3",10)
-    for label,color,score,txt in [
-        ("WORKLOAD：仕事の負担",COL["A"],A,comments["A"]),
-        ("REACTION：ストレス反応",COL["B"],B,comments["B"]),
-        ("SUPPORT ：周囲の支援",COL["C"],C,comments["C"]),
-        ("SATISFACTION：満足度",COL["D"],D,comments["D"]),
+    draw_chart(figA, 40, H - 520, "ストレスの原因と考えられる因子", labels_A, COL["A"])
+    draw_chart(figB, 230, H - 520, "ストレスによって起こる心身の反応", labels_B, COL["B"])
+    draw_chart(figC, 420, H - 520, "ストレス反応に影響を与える因子", labels_C, COL["C"])
+
+    # --- 解析コメント ---
+    y = H - 580
+    c.setFont("HeiseiMin-W3", 11)
+    c.drawString(40, y, "【解析コメント（点数／コメント）】")
+    y -= 18
+    c.setFont("HeiseiMin-W3", 9)
+    for label, color, key in [
+        ("WORKLOAD：仕事の負担／", COL["A"], "A"),
+        ("REACTION：ストレス反応／", COL["B"], "B"),
+        ("SUPPORT ：周囲の支援／", COL["C"], "C"),
+        ("SATISFACTION：満足度／", COL["D"], "D"),
     ]:
-        r,g,b=[int(color[i:i+2],16)/255 for i in (1,3,5)]
-        c.setFillColorRGB(r,g,b); c.drawString(40,y,f"{label}")
-        c.setFillColorRGB(0,0,0); c.drawString(220,y,f"{score:.1f}点／{txt}")
-        y -= 18
+        r, g, b = [int(color[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        c.setFillColorRGB(r, g, b)
+        c.drawString(40, y, label)
+        c.setFillColorRGB(0, 0, 0)
+        c.drawString(190, y, comments[key])
+        y -= 14
 
-    # セルフケア
-    y -= 6; c.setFont("HeiseiMin-W3",12); c.drawString(40,y,"【セルフケアのポイント】")
-    y -= 20; c.setFont("HeiseiMin-W3",10)
+    # --- セルフケア ---
+    y -= 10
+    c.setFont("HeiseiMin-W3", 11)
+    c.drawString(40, y, "【セルフケアのポイント】")
+    y -= 16
+    c.setFont("HeiseiMin-W3", 9)
     for t in [
-        "１）睡眠・食事・軽い運動のリズムを整える。",
-        "２）仕事の量・締切・優先順位を整理する。",
-        "３）２週間以上続く不調は専門相談を。"
+        "１）睡眠・食事・軽い運動のリズムを一定化。",
+        "２）仕事の量・締切・優先順位の見直しと共有。",
+        "３）２週間以上つらさが続く／支障が出る場合は専門相談を。"
     ]:
-        c.drawString(52,y,t); y-=16
+        c.drawString(52, y, t)
+        y -= 12
 
-    # 署名・注意
-    y -= 8; c.line(40,y,W-40,y); y-=18
-    c.setFont("HeiseiMin-W3",9)
+    # --- 署名 ---
+    y -= 10
+    c.line(40, y, W - 40, y)
+    y -= 15
+    c.setFont("HeiseiMin-W3", 8)
     for n in [
         "※本票はセルフケアを目的とした参考資料であり、",
         "　医学的診断・証明を示すものではありません。",
         "　中央大学生活協同組合　情報通信チーム"
     ]:
-        c.drawString(40,y,n); y-=14
+        c.drawString(40, y, n)
+        y -= 11
 
-    c.showPage(); c.save()
+    c.showPage()
+    c.save()
     buf.seek(0)
 
-    st.download_button("📄 PDFをダウンロード", buf.getvalue(),
-        file_name=f"{datetime.now().strftime('%Y%m%d')}_ストレスチェック業務版.pdf",
-        mime="application/pdf")
+    st.download_button(
+        "📥 PDFをダウンロード",
+        buf.getvalue(),
+        file_name=f"{datetime.now().strftime('%Y%m%d')}_ストレスチェック業務版_1page.pdf",
+        mime="application/pdf"
+    )
 
     # もう一度やり直す
     if st.button("🔁 もう一度やり直す"):
