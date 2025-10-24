@@ -132,37 +132,66 @@ except Exception: st.markdown("### 中大生協ストレスチェック")
 st.markdown(f"<p style='text-align:center;color:#555;'>{APP_CAPTION}</p>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
-# ---------- 質問 ----------
-p = st.session_state.page
+# ==========================================================
+# 質問ページ（Q1〜Q57）
+# ==========================================================
 if p < len(Q):
     st.subheader(f"Q{p+1} / {len(Q)}")
     st.write(Q[p])
-    opts = CHOICES
+
     idx = (st.session_state.ans[p] - 1) if st.session_state.ans[p] else 0
-    ch = st.radio("回答を選んでください：", opts, index=idx, key=f"q_{p+1}")
-    if ch: st.session_state.ans[p] = CHOICES.index(ch) + 1
+    ch = st.radio("回答を選んでください：", CHOICES, index=idx, key=f"q_{p+1}")
+    if ch:
+        st.session_state.ans[p] = CHOICES.index(ch) + 1
 
-    # 縦配置：次へ → 前へ（宣言遵守）
-    if st.button("次へ ▶"):
-        st.session_state.page += 1
-        st.rerun()
-    if p > 0 and st.button("◀ 前へ"):
-        st.session_state.page -= 1
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("◀ 前へ") and p > 0:
+            st.session_state.page -= 1
+            st.rerun()
+    with col2:
+        if st.button("次へ ▶"):
+            st.session_state.page += 1
+            st.rerun()
 
-# ---------- 解析（アプリ） ----------
+# ==========================================================
+# 結果ページ（全57問回答後のみ）
+# ==========================================================
 else:
-    # 全回答確認
+    # 未回答チェック
     if any(a is None for a in st.session_state.ans):
         st.error("未回答があります。全57問に回答してください。")
-        if st.button("入力に戻る"): st.session_state.page = 0; st.rerun()
+        if st.button("入力に戻る"):
+            st.session_state.page = 0
+            st.rerun()
         st.stop()
 
+    # 解析処理
     sc = split_scores(st.session_state.ans)
-    A,B,C,D = sc["A"],sc["B"],sc["C"],sc["D"]
-    status_label = overall_label(A,B,C)
-    status_text  = overall_comment(A,B,C)
-    comments = {k: stress_comment(k, sc[k]) for k in ["A","B","C","D"]}
+    A, B, C, D = sc["A"], sc["B"], sc["C"], sc["D"]
+    status_label = overall_label(A, B, C)
+    status_text = overall_comment(A, B, C)
+    comments = {k: stress_comment(k, sc[k]) for k in ["A", "B", "C", "D"]}
+
+    # 結果表示
+    st.subheader("解析結果")
+    st.markdown(f"**総合判定：{status_label}**")
+    st.markdown(status_text)
+    st.caption(f"実施日：{datetime.now().strftime('%Y年%m月%d日 %H:%M')}")
+
+    # PDF出力・やり直しボタン（結果ページのみ表示）
+    pdf_bytes = build_pdf()
+    st.download_button(
+        "💾 PDFを保存",
+        pdf_bytes,
+        file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
+        mime="application/pdf"
+    )
+
+    if st.button("🔁 もう一度やり直す"):
+        st.session_state.page = 0
+        st.session_state.ans = [None] * 57
+        st.rerun()
 
     # 1) 総合判定
     st.subheader("解析結果")
@@ -348,29 +377,30 @@ else:
         c.drawString(MARGIN, y-10, "中央大学生活協同組合　情報通信チーム")
 
 # ----------------------------------------------------------
-# PDF保存ボタン（この位置だけに表示）
+# 結果ページだけに表示するPDF保存と再実行ボタン
 # ----------------------------------------------------------
-buf = io.BytesIO()
-c = canvas.Canvas(buf, pagesize=A4)
-W,H = A4
-MARGIN = 57
-y = H - MARGIN
+if p >= len(Q):
+    # PDF作成
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    W, H = A4
+    MARGIN = 57
+    y = H - MARGIN
 
-# ←ここにPDF描画内容（c.drawString など）
-c.save()
-buf.seek(0)
+    # ←ここにPDF描画内容（c.drawString など）
+    c.save()
+    buf.seek(0)
 
-st.download_button(
-    label="💾 PDFを保存",
-    data=buf.getvalue(),
-    file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
-    mime="application/pdf"
-)
+    # PDF保存ボタン
+    st.download_button(
+        label="💾 PDFを保存",
+        data=buf.getvalue(),
+        file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
+        mime="application/pdf"
+    )
 
-# ----------------------------------------------------------
-# 再実行ボタン（PDF保存の下にのみ配置）
-# ----------------------------------------------------------
-if st.button("🔁 もう一度やり直す"):
-    st.session_state.page = 0
-    st.session_state.ans = [None] * 57
-    st.rerun()
+    # 再実行ボタン
+    if st.button("🔁 もう一度やり直す"):
+        st.session_state.page = 0
+        st.session_state.ans = [None] * 57
+        st.rerun()
