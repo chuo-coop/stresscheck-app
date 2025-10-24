@@ -348,10 +348,11 @@ else:
         c.drawString(MARGIN, y-10, "中央大学生活協同組合　情報通信チーム")
 
         c.save(); buf.seek(0)
-        st.download_button("💾 PDFを保存", buf.getvalue(),
-                           file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
-                           mime="application/pdf")
+    st.download_button("💾 PDFを保存", buf.getvalue(),
+        file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
+        mime="application/pdf")
 
-    # 再実行
     if st.button("🔁 もう一度やり直す"):
-        st.session_state.page=0; st.session_state.ans=[None]*len(Q); st.rerun()
+        st.session_state.page=0
+        st.session_state.ans=[None]*57
+        st.rerun()
