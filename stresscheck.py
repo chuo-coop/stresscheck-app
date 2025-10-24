@@ -1,5 +1,5 @@
 # ==============================================================
-# 中大生協 ストレスチェック（厚労省57項目準拠）ver4.4c
+# 中大生協 ストレスチェック（厚労省57項目準拠）ver4.4d
 # 仕様：アプリ表示＝A4縦1枚PDFを完全一致
 # ==============================================================
 
@@ -39,10 +39,14 @@ Q = [
     "現在の仕事に満足している。","現在の生活に満足している。"
 ]
 QTYPE = (["A"]*17 + ["B"]*29 + ["C"]*9 + ["D"]*2)
-REV = [1,0,0,0,1,1,1,1,1,1,0,1,1,1,1,1,1, 1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0, 1,1]
+REV = [
+    1,0,0,0,1,1,1,1,1,1,0,1,1,1,1,1,1,   # A17
+    1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,   # B29
+    0,0,0,0,0,0,0,0,0,                          # C9
+    1,1                                        # D2
+]
 CHOICES = ["1：そうではない","2：あまりそうではない","3：どちらともいえない","4：ややそうだ","5：そうだ"]
-
-assert len(Q)==57
+assert len(Q)==57 and len(REV)==57
 
 # ---------- 状態 ----------
 if "page" not in st.session_state: st.session_state.page = 0
@@ -83,7 +87,7 @@ def hex_to_rgb01(hexv): return tuple(int(hexv[i:i+2],16)/255 for i in (1,3,5))
 def wrap_lines(s, width): return textwrap.wrap(s, width=width)
 
 # ---------- ヘッダ ----------
-st.markdown(f"### 中大生協ストレスチェック")
+st.markdown("### 中大生協ストレスチェック")
 st.markdown(f"<p style='text-align:center;color:#555;'>{APP_CAPTION}</p>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -154,7 +158,7 @@ else:
     c.setFont("HeiseiMin-W3",9)
     c.drawString(MARGIN,y,f"実施日：{datetime.now().strftime('%Y-%m-%d %H:%M')}"); y-=10
     c.line(MARGIN,y,W-MARGIN,y); y-=12
-    c.drawString(MARGIN,y,f"【総合判定】ストレス反応／職場要因がやや高い傾向"); y-=12
+    c.drawString(MARGIN,y,"【総合判定】ストレス反応／職場要因がやや高い傾向"); y-=12
     c.drawString(MARGIN+20,y,"疲労や負担がやや高めです。短期間の調整と支援活用を意識してください。"); y-=20
     c.setFont("HeiseiMin-W3",8)
     c.drawString(MARGIN,y,"※本票はセルフケアを目的とした参考資料であり、医学的診断・証明を示すものではありません。"); y-=10
