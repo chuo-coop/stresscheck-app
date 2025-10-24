@@ -371,10 +371,11 @@ st.download_button(
 )
 
 
-    if st.button("🔁 もう一度やり直す"):
-        st.session_state.page=0
-        st.session_state.ans=[None]*57
-        st.rerun()
+if st.button("🔁 もう一度やり直す"):
+    st.session_state.page=0
+    st.session_state.ans=[None]*57
+    st.rerun()
+
 
 
 
