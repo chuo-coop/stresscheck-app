@@ -124,7 +124,9 @@ if st.session_state.page < len(QUESTIONS):
 
 
 else:
+    # ===== 解析 =====
     st.success("🎉 回答完了！解析を開始します。")
+
     ans = st.session_state.answers
     A, B, C, D = ans[0:17], ans[17:46], ans[46:55], ans[55:57]
     C_rev, D_rev = [6 - x for x in C], [6 - x for x in D]
@@ -136,6 +138,7 @@ else:
     my_vals = [A_score, B_score, C_score, D_score]
     nat_vals = [45, 40, 35, 30]
 
+    # --- 判定 ---
     if B_score >= 60:
         status = "高ストレス状態（専門医への相談をおすすめします）"
     elif B_score >= 50 and (A_score >= 55 or C_score >= 55):
@@ -143,15 +146,23 @@ else:
     else:
         status = "概ね安定しています（現状維持を心がけましょう）"
 
+    # ===== 総合判定表示 =====
+    st.subheader("総合判定")
+    st.markdown(
+        f"<p style='font-size:18px; font-weight:700; color:#8B0000;'>{status}</p>",
+        unsafe_allow_html=True
+    )
+
+    # ===== レーダーチャート =====
     labels = ["A", "B", "C", "D"]
     user = my_vals + [my_vals[0]]
     avg = nat_vals + [nat_vals[0]]
-    angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist() + [0]
+    angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False).tolist() + [0]
 
     fig, ax = plt.subplots(figsize=(4.2, 4.2), subplot_kw=dict(polar=True))
-    ax.plot(angles, user, color=COLORS["A"], linewidth=2, label="YOU")
+    ax.plot(angles, user, color=COLORS["A"], linewidth=2, label="あなた")
     ax.fill(angles, user, color=COLORS["A"], alpha=0.15)
-    ax.plot(angles, avg, color=COLORS["AVG"], linestyle="--", linewidth=1.5, label="National AVG")
+    ax.plot(angles, avg, color=COLORS["AVG"], linestyle="--", linewidth=1.5, label="全国平均")
     ax.fill(angles, avg, color=COLORS["AVG"], alpha=0.05)
     ax.set_xticks(angles[:-1])
     for t, col in zip(ax.set_xticklabels(labels), [COLORS["A"], COLORS["B"], COLORS["C"], COLORS["D"]]):
@@ -160,6 +171,27 @@ else:
     ax.set_yticklabels([])
     ax.legend(loc="upper right", bbox_to_anchor=(1.25, 1.12))
     st.pyplot(fig)
+
+    # ===== 各群スコア表示 =====
+    st.subheader("解析サマリー（全国平均との比較）")
+
+    summary_blocks = [
+        ("A. 仕事の負担感", A_score, 45, "高いほど負担感が強い（悪い傾向）", COLORS["A"]),
+        ("B. からだと気持ちの反応", B_score, 40, "高いほどストレス反応が強い（悪い傾向）", COLORS["B"]),
+        ("C. 周囲のサポート", C_score, 35, "高いほど支援が多い（良い傾向）", COLORS["C"]),
+        ("D. 仕事や生活の満足感", D_score, 30, "高いほど満足度が高い（良い傾向）", COLORS["D"]),
+    ]
+
+    for title, val, avg, meaning, color in summary_blocks:
+        st.markdown(
+            f"<div style='margin:8px 0; padding:6px 0; border-bottom:1px solid #ccc;'>"
+            f"<span style='color:{color}; font-weight:700'>{title}</span><br>"
+            f"<span style='color:{color}; font-size:15px;'>あなた：{val:.1f}　全国平均：{avg:.1f}</span><br>"
+            f"<span style='font-size:13px; color:#333;'>{meaning}</span>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+
 
     # ===== PDF生成 =====
     buf, img_buf = io.BytesIO(), io.BytesIO()
