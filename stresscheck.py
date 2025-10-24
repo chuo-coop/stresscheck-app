@@ -1,11 +1,18 @@
 # ------------------------------------------------------------
-# ストレスチェック簡易版（厚労省準拠 × 中大生協セルフケア版） ver2.2
+# ストレスチェック簡易版（厚労省準拠 × 中大生協セルフケア版） ver3.1
 # ------------------------------------------------------------
 # 使い方:
-#   1) 同フォルダに TITLE.png を置く（画面ヘッダー用。PDFには入れない）
-#   2) `streamlit run app.py` で起動
-# 必要ライブラリ:
-#   pip install streamlit matplotlib reportlab pillow
+#   1) 同フォルダに TITLE.png を置く（ブラウザ上部ヘッダー用。PDFには入れない）
+#   2) pip install streamlit matplotlib reportlab pillow
+#   3) streamlit run app.py
+#
+# 仕様（最終確定）:
+#   - 厚労省57項目・5件法・逆転対応
+#   - スコアは0–100正規化
+#   - 判定: B>=60 or (B>=50 and (A>=60 or C<=40))→高ストレス / B>=50 or A>=55 or C<=45→注意 / 他→安定
+#   - ブラウザ: 上部にTITLE.png表示
+#   - PDF: A4縦1ページ完結 / ヘッダー=テキスト(タイトル+実施日) / チャート=本人のみ中央配置
+#           下段=A〜Dスコア+コメント / セルフケア助言3項目 / 注意書き / フォント=HeiseiKakuGo-W5
 
 import streamlit as st
 import io
@@ -18,19 +25,18 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.lib.utils import ImageReader
 
-# ========== 画面基本設定 ==========
+# ===== 画面設定 =====
 st.set_page_config(page_title="ストレスチェック簡易版（中大生協）", layout="centered")
 plt.rcParams['font.family'] = 'IPAexGothic'
 plt.rcParams['axes.unicode_minus'] = False
 
-# ========== 固定文言・色 ==========
-APP_TITLE = "ストレスチェック簡易版（中大生協セルフケア版）"
-CAPTION = "厚生労働省「職業性ストレス簡易調査票（57項目）」準拠／中央大学生活協同組合セルフケア版"
+# ===== 固定文言・色 =====
+APP_CAPTION = "厚生労働省『職業性ストレス簡易調査票（57項目）』準拠／中央大学生活協同組合セルフケア版"
 COLORS = {"A": "#8B0000", "B": "#003366", "C": "#004B23", "D": "#7B3F00"}
 LABELS_EN = ["Workload", "Reaction", "Support", "Satisfaction"]
 LABELS_JA = ["仕事の負担", "ストレス反応", "周囲の支援", "満足度"]
 
-# ========== 設問（厚労省57項目・5件法対応） ==========
+# ===== 質問（厚労省57項目） =====
 QUESTIONS = [
     # A群（17）
     "自分のペースで仕事ができる。","仕事の量が多い。","時間内に仕事を終えるのが難しい。",
@@ -53,15 +59,9 @@ QUESTIONS = [
     # D群（2）
     "現在の仕事に満足している。","現在の生活に満足している。"
 ]
-
-# 群タイプ（A=1-17, B=18-46, C=47-55, D=56-57）
 Q_TYPE = (["A"]*17 + ["B"]*29 + ["C"]*9 + ["D"]*2)
 
-# 逆転項目（1=逆転, 0=通常）
-# A: 1,5,6,7,8,9,10,12,13,14,15,16,17 が逆転
-# B: 18,19 が逆転
-# C: 47-55 全て逆転
-# D: 56-57 逆転
+# 逆転項目（1=逆転）
 REVERSE = [
     # A(1-17)
     1,0,0,0, 1,1,1,1,1,1, 0,1,1,1,1,1,1,
@@ -73,52 +73,44 @@ REVERSE = [
     1,1
 ]
 
-# 回答選択肢（5件法・共通）
 CHOICES = ["1：そうではない","2：あまりそうではない","3：どちらともいえない","4：ややそうだ","5：そうだ"]
 
-# ========== セッション状態 ==========
+# ===== セッション =====
 if "page" not in st.session_state:
     st.session_state.page = 0
 if "answers" not in st.session_state:
     st.session_state.answers = [None] * len(QUESTIONS)
 
-def go_next():
-    st.session_state.page += 1
-    st.rerun()
+def go_next(): st.session_state.page += 1; st.rerun()
 def go_prev():
     if st.session_state.page > 0:
-        st.session_state.page -= 1
-        st.rerun()
+        st.session_state.page -= 1; st.rerun()
 def restart():
     st.session_state.page = 0
     st.session_state.answers = [None] * len(QUESTIONS)
     st.rerun()
 
-# ========== 画面ヘッダー（ブラウザのみ。PDF非挿入） ==========
+# ===== 画面ヘッダー（ブラウザのみ） =====
 st.image("TITLE.png", use_column_width=True)
-st.markdown(f"<p style='text-align:center; color:#555;'>{CAPTION}</p>", unsafe_allow_html=True)
+st.markdown(f"<p style='text-align:center; color:#555;'>{APP_CAPTION}</p>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
-# ========== 質問ページ or 解析ページ ==========
+# ===== 質問 or 解析 =====
 if st.session_state.page < len(QUESTIONS):
-    q_num = st.session_state.page + 1
-    st.subheader(f"Q{q_num} / {len(QUESTIONS)}")
-    st.write(QUESTIONS[st.session_state.page])
+    i = st.session_state.page
+    st.subheader(f"Q{i+1} / {len(QUESTIONS)}")
+    st.write(QUESTIONS[i])
 
-    prev_val = st.session_state.answers[st.session_state.page]
-    index_val = (prev_val - 1) if prev_val else None
-    choice = st.radio("回答を選んでください：", CHOICES, index=index_val, key=f"q_{q_num}")
+    prev = st.session_state.answers[i]
+    idx = (prev - 1) if prev else None
+    choice = st.radio("回答を選んでください：", CHOICES, index=idx, key=f"q_{i+1}")
 
     st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
-
-    # 縦配置：次へ → 前へ
     if choice:
-        st.session_state.answers[st.session_state.page] = CHOICES.index(choice) + 1
+        st.session_state.answers[i] = CHOICES.index(choice) + 1
         if st.button("次へ ▶"):
             go_next()
-
     st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
-
     if st.session_state.page > 0:
         if st.button("◀ 前へ"):
             go_prev()
@@ -126,17 +118,21 @@ if st.session_state.page < len(QUESTIONS):
 else:
     # ===== 解析 =====
     st.subheader("解析結果")
-    st.caption(f"実施日：{datetime.now().strftime('%Y年%m月%d日 %H:%M')}")
+    exec_dt = datetime.now().strftime('%Y年%m月%d日 %H:%M')
+    st.caption(f"実施日：{exec_dt}")
 
     ans = st.session_state.answers
+
+    # 群別集計（逆転→格納）
     groups = {"A":[], "B":[], "C":[], "D":[]}
-    for i, v in enumerate(ans):
-        val = 6 - v if REVERSE[i]==1 else v
+    for i, raw in enumerate(ans):
+        val = 6 - raw if REVERSE[i]==1 else raw
         groups[Q_TYPE[i]].append(val)
 
     def norm100(vals):
         s = sum(vals)
-        mn, mx = len(vals), len(vals)*5
+        mn = len(vals) * 1
+        mx = len(vals) * 5
         return round((s - mn) / (mx - mn) * 100, 1)
 
     A = norm100(groups["A"])
@@ -145,23 +141,21 @@ else:
     D = norm100(groups["D"])
     scores = {"A":A, "B":B, "C":C, "D":D}
 
-    # 総合判定（厚労省ロジック準拠）
+    # 総合判定（簡易基準）
     if B >= 60 or (B >= 50 and (A >= 60 or C <= 40)):
         status = "高ストレス状態（専門家への相談を推奨）"
     elif B >= 50 or A >= 55 or C <= 45:
         status = "注意：ストレス反応や職場要因にやや高い傾向"
     else:
         status = "概ね安定しています（現状維持を心がけましょう）"
-
     st.markdown(f"**総合判定：{status}**")
 
-    # ===== レーダーチャート（本人のみ） =====
+    # レーダーチャート（本人のみ・中央配置想定）
     st.markdown("#### ストレスプロファイル（本人）")
-    vals = [A, B, C, D]
+    vals = [A,B,C,D]
     angles = np.linspace(0, 2*np.pi, 4, endpoint=False).tolist()
     vals_cyc = vals + [vals[0]]
     ang_cyc = angles + [angles[0]]
-
     fig, ax = plt.subplots(figsize=(4.8, 4.8), subplot_kw=dict(polar=True))
     ax.plot(ang_cyc, vals_cyc, color=COLORS["A"], linewidth=2)
     ax.fill(ang_cyc, vals_cyc, color=COLORS["A"], alpha=0.15)
@@ -170,8 +164,7 @@ else:
     ax.set_yticklabels([])
     st.pyplot(fig)
 
-    # ===== A〜D 詳細表示（色付き） =====
-    st.markdown("#### 領域別サマリー")
+    # コメント関数
     def area_comment(key, score):
         if key == "A":
             if score >= 60: return "仕事量や裁量のバランスに負担感が見られます。"
@@ -191,6 +184,8 @@ else:
             return "概ね良好な満足度です。"
         return ""
 
+    # 領域別サマリー
+    st.markdown("#### 領域別サマリー")
     for key, name in zip(["A","B","C","D"], LABELS_JA):
         col = COLORS[key]
         st.markdown(
@@ -201,57 +196,71 @@ else:
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # ===== PDF生成 =====
+    # ===== PDF生成（A4縦1ページ完結）=====
     buf, img_buf = io.BytesIO(), io.BytesIO()
-    # グラフ画像化
+    # チャート画像化
     fig.savefig(img_buf, format="png", bbox_inches="tight")
     img_buf.seek(0)
 
-    # 日本語フォント
+    # フォント
     pdfmetrics.registerFont(UnicodeCIDFont("HeiseiKakuGo-W5"))
     c = canvas.Canvas(buf, pagesize=A4)
 
-    # テキストヘッダー（PDF。画像ヘッダーは入れない）
+    # テキストヘッダー（タイトル＋実施日）
     c.setFont("HeiseiKakuGo-W5", 12)
     c.drawString(40, 810, "ストレスチェック簡易版（厚労省準拠／中大生協セルフケア版）")
     c.setFont("HeiseiKakuGo-W5", 9)
     c.drawString(40, 795, f"実施日：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
     c.line(40, 785, A4[0]-40, 785)
 
-    # レーダーチャート（位置）
-    c.drawImage(ImageReader(img_buf), 60, 440, width=320, height=320)
+    # レーダーチャート中央配置
+    chart_w, chart_h = 320, 320
+    chart_x = (A4[0] - chart_w) / 2
+    chart_y = 440
+    c.drawImage(ImageReader(img_buf), chart_x, chart_y, width=chart_w, height=chart_h)
 
     # 総合判定
-    y = 415
+    y = chart_y - 25
     c.setFont("HeiseiKakuGo-W5", 11)
     c.drawString(40, y, f"【総合判定】{status}")
-    y -= 22
+    y -= 20
 
-    # 領域別サマリー
+    # A〜D スコア＋コメント
     c.setFont("HeiseiKakuGo-W5", 10)
     def set_rgb(hexcol):
         r = int(hexcol[1:3],16)/255; g = int(hexcol[3:5],16)/255; b = int(hexcol[5:7],16)/255
         c.setFillColorRGB(r,g,b)
 
-    blocks = [
-        ("A. 仕事の負担", A, COLORS["A"]),
-        ("B. ストレス反応", B, COLORS["B"]),
-        ("C. 周囲の支援", C, COLORS["C"]),
-        ("D. 満足度",     D, COLORS["D"]),
+    rows = [
+        ("A. Workload / 仕事の負担", A, COLORS["A"], area_comment("A", A)),
+        ("B. Reaction / ストレス反応", B, COLORS["B"], area_comment("B", B)),
+        ("C. Support / 周囲の支援",   C, COLORS["C"], area_comment("C", C)),
+        ("D. Satisfaction / 満足度",  D, COLORS["D"], area_comment("D", D)),
     ]
-    for title, val, col in blocks:
-        set_rgb(col)
-        c.drawString(40, y, f"{title}：{val:.1f}")
-        c.setFillColorRGB(0,0,0)
-        c.drawString(180, y, area_comment(title[0], val))
-        y -= 18
+    for title, val, col, cm in rows:
+        set_rgb(col); c.drawString(40, y, f"{title}：{val:.1f}")
+        c.setFillColorRGB(0,0,0); c.drawString(220, y, cm)
+        y -= 16
+
+    # セルフケア助言（3項目）
+    y -= 6
+    c.setFont("HeiseiKakuGo-W5", 10)
+    c.drawString(40, y, "【セルフケアのポイント】")
+    y -= 14
+    tips = [
+        "1) 睡眠・食事・軽い運動のリズムを1週間だけ整える（負荷を上げない）。",
+        "2) 仕事の量/優先順位/締切の再確認を行い、相談できる相手を明確化する。",
+        "3) しんどさが2週間以上続く、または日常生活に支障が出る場合は専門家へ。"
+    ]
+    for t in tips:
+        c.drawString(52, y, t); y -= 14
 
     # 注意書き
-    y -= 18
+    y -= 6
     c.setFont("HeiseiKakuGo-W5", 9)
     c.drawString(40, y, "※本チェックはセルフケアを目的としたものであり、医学的診断ではありません。")
-    y -= 14
-    c.drawString(40, y, "※体調の不調や不安が続く場合は、医師・保健師・カウンセラー等の専門家へご相談ください。")
+    y -= 12
+    c.drawString(40, y, "※結果に不安がある場合や体調不良が続く場合は、医師・保健師・カウンセラーへご相談ください。")
 
     c.showPage()
     c.save()
