@@ -356,7 +356,6 @@ y = draw_text_lines(
 )
 c.drawString(MARGIN, y - 10, "中央大学生活協同組合　情報通信チーム")
 
-# === PDF生成・保存（ワンクリック動作） ===
 c.save()
 buf.seek(0)
 
