@@ -108,7 +108,7 @@ if st.session_state.page < len(QUESTIONS):
 
     choice = st.radio("回答を選んでください：", choice_set, index=index_val, key=f"q_{q_num}")
 
-    t.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
     col_spacer, col_prev, col_next = st.columns([2, 1, 1])
 
     with col_prev:
