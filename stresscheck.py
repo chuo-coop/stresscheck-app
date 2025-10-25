@@ -193,7 +193,7 @@ else:
 
     # ---------- PDF（A4縦1枚・表示一致・ボタン1個） ----------
     ph = st.empty()
-    if ph.button("📄 PDFをダウンロード"):
+    if ph.button("📄 1.PDFを生成"):
         buf = io.BytesIO()
         W,H = A4; M = 57
         c = canvas.Canvas(buf, pagesize=A4)
@@ -275,7 +275,7 @@ else:
         c.save(); buf.seek(0)
         ph.empty()
         st.download_button(
-            label="📄 生成されたPDFを保存",
+            label="📄 2.PDFを保存",
             data=buf.getvalue(),
             file_name=f"{datetime.now().strftime('%Y%m%d')}_StressCheck_ChuoU.pdf",
             mime="application/pdf",
@@ -284,5 +284,6 @@ else:
 
     if st.button("🔁 もう一度やり直す"):
         st.session_state.page=0; st.session_state.ans=[None]*len(Q); st.rerun()
+
 
 
