@@ -137,7 +137,9 @@ else:
     st.subheader("解析結果")
     st.markdown(f"**総合判定：{status_label}**")
     st.markdown(status_text)
-    st.caption(f"実施日：{datetime.now().strftime('%Y年%m月%d日 %H:%M')}")
+    from datetime import datetime, timedelta
+    jst = datetime.utcnow() + timedelta(hours=9)
+    st.caption(f"実施日：{jst.strftime('%Y年%m月%d日 %H:%M')}")
 
     st.markdown("#### ストレス判定表（5段階）")
     st.markdown("<small>低い：20未満／やや低い：20–39／普通：40–59／やや高い：60–79／高い：80以上</small>", unsafe_allow_html=True)
@@ -206,7 +208,7 @@ else:
         y = H - M
         c.setLineWidth(1.0)
         t(M, y, "職業性ストレス簡易調査票（厚労省準拠）— 中大生協セルフケア版", 12); y -= 15
-        t(M, y, f"実施日：{datetime.now().strftime('%Y-%m-%d %H:%M')}", 9); y -= 8
+        t(M, y, f"実施日：{(datetime.utcnow()+timedelta(hours=9)).strftime('%Y-%m-%d %H:%M')}", 9)
         c.line(M, y, W-M, y); y -= 14
 
         t(M, y, f"【総合判定】{status_label}", 11); y -= 14
@@ -282,4 +284,5 @@ else:
 
     if st.button("🔁 もう一度やり直す"):
         st.session_state.page=0; st.session_state.ans=[None]*len(Q); st.rerun()
+
 
